@@ -1,13 +1,12 @@
 import os
 import configparser
 
-BASE_DIR = os.path.dirname(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+BASE_DIR = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 config = configparser.ConfigParser()
-config_path = "{}/conf/api_task/config.ini".format(BASE_DIR)
+config_path = "{}/conf/config.ini".format(BASE_DIR)
 config.read(config_path)
-
 # Системное наименование модуля
-MODULE_SYSTEM_NAME = config['DEFAULT']['system_name']
+MODULE_SYSTEM_NAME = config['DEFAULT']['SYSTEM_NAME']
 
 # Каналы (наименования таблиц), которые слушает служба
 MAIN_TASK_LOG_CHANNEL = config['LISTEN_CHANNEL_NAME']['table_main_task_log']

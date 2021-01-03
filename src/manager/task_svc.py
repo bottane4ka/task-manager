@@ -2,7 +2,6 @@
 import uuid
 import json
 from datetime import datetime
-from django.db import transaction
 # from django.conf import settings as main_settings
 from django.db.models import Q
 from settings import MODULE_SYSTEM_NAME
@@ -15,24 +14,23 @@ from settings import DB_HOST, DB_PORT, DB_NAME, DB_USER
 
 from collections import namedtuple
 
-from base_class import BaseSVC
-from exceptions import FindModuleError
-from wrapper import message_wrapper
+from utils.base_utils.base_class import BaseSVC
+from utils.exceptions import FindModuleError
+from utils.wrapper import message_wrapper
 
-from status_type import MsgTypeChoice
-from status_type import StatusSendChoice
-from task.models import ModuleModel
-from task.models import MainTaskLogModel
-from task.models import TaskSequenceModel
-from task.models import ObjectToTaskLogModel
-from task.models import ObjectToCommandLogModel
-from task.models import TaskLogModel
-from task.models import CommandLogModel
-from task.models import ActionModel
-from task.models import CommandModel
-from task.models import MethodModuleModel
-from task.models import MessageModel
-from task.models import StatusTaskModel
+from utils.status_type import MsgTypeChoice
+from utils.status_type import StatusSendChoice
+from models import ModuleModel
+from models import MainTaskLogModel
+from models import TaskSequenceModel
+from models import ObjectToCommandLogModel
+from models import TaskLogModel
+from models import CommandLogModel
+from models import ActionModel
+from models import CommandModel
+from models import MethodModuleModel
+from models import MessageModel
+from models import StatusTaskModel
 
 FuncInfo = namedtuple("FuncInfo", "name max_count wait_time")
 
