@@ -2,24 +2,28 @@
 
 import time
 import copy
+from sqlalchemy.orm import exc
 from datetime import datetime
 from functools import wraps
 
 from status_type import StatusSendChoice
 from status_type import MsgTypeChoice
 
-# from task.models import MessageModel
-# from task.models import ObjectToTaskLogModel
-# from task.models import ObjectToCommandLogModel
-# from task.models import TaskLogModel
-# from task.models import CommandLogModel
+from orm.models import MessageModel
+from orm.models import ObjectToTaskLogModel
+from orm.models import ObjectToCommandLogModel
+from orm.models import TaskLogModel
+from orm.models import ActionModel
+from orm.models import CommandLogModel
+
+
 # from django.db import transaction
 
 
-GET_MESSAGE = "SELECT * FROM manager.message WHERE s_id = '{}'"
-UPDATE_STATUS_MESSAGE = "UPDATE manager.message SET status = '{}' WHERE s_id = '{}'"
-CREATE_MESSAGE = "INSERT INTO manager.message (task_log_id, parent_msg_id, send_id, get_id, data, " \
-                 "msg_type, status, date_created, command_log_id) VALUES ({item_list})"
+# GET_MESSAGE = "SELECT * FROM manager.message WHERE s_id = '{}'"
+# UPDATE_STATUS_MESSAGE = "UPDATE manager.message SET status = '{}' WHERE s_id = '{}'"
+# CREATE_MESSAGE = "INSERT INTO manager.message (task_log_id, parent_msg_id, send_id, get_id, data, " \
+#                  "msg_type, status, date_created, command_log_id) VALUES ({item_list})"
 
 
 def task_wrapper(func):
@@ -42,6 +46,7 @@ def task_wrapper(func):
                        (с ключом message для отображения в пользовательском интерфейсе)
     :return:
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         """
@@ -53,26 +58,23 @@ def task_wrapper(func):
                      - get_id - получатель (менеджер задач)
         :return:
         """
+        self = args[0]
         task_id = kwargs.pop("task_id", None)
         msg_type = kwargs.pop("msg_type")
         send_id = kwargs.pop("send_id", None)
         get_id = kwargs.pop("get_id", None)
-        self = args[0]
         is_error = False
         if task_id:
             try:
-                task_id = self._get_data(GET_MESSAGE.format(task_id))
-                # task_id = MessageModel.objects.get(pk=task_id)
-            except Exception as ex:
+                task_id = self.session.query(MessageModel).filter(MessageModel.s_id == task_id).one()
+            except exc.NoResultFound:
                 # message = "Не существует сообщения с идентификатором {}".format(task_id)
                 is_error = True
 
         if not is_error:
             if task_id:
-                task_id["status"] = StatusSendChoice.recd.value
-                # task_id.status = StatusSendChoice.recd.value
-                self._execute(UPDATE_STATUS_MESSAGE.format(task_id["status"], task_id["s_id"]))
-                # task_id.save()
+                task_id.status = StatusSendChoice.recd.value
+                self.session.commit()
 
             result, is_error, data = func(*args, task_id=task_id, **kwargs)
 
@@ -98,22 +100,24 @@ def task_wrapper(func):
             if data:
                 post_data["data"] = data
 
-            MessageModel.objects.create(**post_data)
+            self.session.add(MessageModel(**post_data))
+            self.session.commit()
 
             if task_id:
                 task_id.status = StatusSendChoice.ok.value
-                task_id.save()
+                self.session.commit()
 
     return wrapper
 
 
 def task_model_wrapper(model):
     """
-    Декоратор для указания модели Django
+    Декоратор для указания модели SQLAlchemy
 
-    :param model: модель Django
+    :param model: модель SQLAlchemy
     :return:
     """
+
     def model_wrapper(func):
         """
         Декоратор получения соответствующей записи из указанной модели
@@ -136,6 +140,7 @@ def task_model_wrapper(model):
                        (с ключом message для отображения в пользовательском интерфейсе)
         :return:
         """
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             """
@@ -153,14 +158,16 @@ def task_model_wrapper(model):
                            - data - данные для сохранения в сущности "Сообщения"
                              (с ключом message для отображения в пользовательском интерфейсе)
             """
+            self = args[0]
             task_id = kwargs.pop("task_id", None)
             object_list = None
             if task_id:
                 object_to_task_log_list = None
-                task_log_list = TaskLogModel.objects.filter(
-                    action_id__number__lte=task_id.task_log_id.action_id.number,
-                    main_task_log_id=task_id.task_log_id.main_task_log_id
-                ).order_by("-action_id__number")
+                task_log_list = self.session.query(TaskLogModel).filter()
+                # task_log_list = TaskLogModel.objects.filter(
+                #     action_id__number__lte=task_id.task_log_id.action_id.number,
+                #     main_task_log_id=task_id.task_log_id.main_task_log_id
+                # ).order_by("-action_id__number")
                 for task_log_id in task_log_list:
                     object_to_task_log_list = ObjectToTaskLogModel.objects.filter(task_log_id=task_log_id)
                     if object_to_task_log_list:
@@ -179,16 +186,18 @@ def task_model_wrapper(model):
             return func(*args, task_id=task_id, object_list=object_list, **kwargs)
 
         return wrapper
+
     return model_wrapper
 
 
 def command_model_wrapper(model):
     """
-    Декоратор для указания модели Django
+    Декоратор для указания модели SQLAlchemy
 
-    :param model: модель Django
+    :param model: модель SQLAlchemy
     :return:
     """
+
     def model_wrapper(func):
         """
         Декоратор получения соответствующей записи из указанной модели
@@ -210,6 +219,7 @@ def command_model_wrapper(model):
                        (с ключом message для отображения в пользовательском интерфейсе)
         :return:
         """
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             """
@@ -233,21 +243,25 @@ def command_model_wrapper(model):
                 try:
                     s_id = ObjectToCommandLogModel.objects.get(command_log_id=task_id.command_log_id).object_id
                 except ObjectToCommandLogModel.DoesNotExist:
-                    message = "Не существует необходимого связанного объекта с задачей {}".format(task_id.command_log_id.s_id)
+                    message = "Не существует необходимого связанного объекта с задачей {}".format(
+                        task_id.command_log_id.s_id)
                     return None, True, {"message": message}
                 except ObjectToCommandLogModel.MultipleObjectsReturned:
-                    message = "Существует больше одного связанного объекта с задачей {}".format(task_id.command_log_id.s_id)
+                    message = "Существует больше одного связанного объекта с задачей {}".format(
+                        task_id.command_log_id.s_id)
                     return None, True, {"message": message}
                 else:
                     try:
                         object_id = model.objects.get(pk=s_id)
                     except model.DoesNotExist:
-                        message = "В сущности {} не существует записи с идентификатором {}".format(model._meta.verbose_name, s_id)
+                        message = "В сущности {} не существует записи с идентификатором {}".format(
+                            model._meta.verbose_name, s_id)
                         return None, True, {"message": message}
 
             return func(*args, task_id=task_id, object_id=object_id, **kwargs)
 
         return wrapper
+
     return model_wrapper
 
 
@@ -271,6 +285,7 @@ def info_logger(func):
                   (с ключом message для отображения в пользовательском интерфейсе)
     :return:
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         """
@@ -301,6 +316,7 @@ def info_logger(func):
             MessageModel.objects.create(**post_data)
 
         return result, is_error, data
+
     return wrapper
 
 
@@ -309,14 +325,13 @@ def message_wrapper(func):
     def wrapper(*args, **kwargs):
         message_list = args[1]
         if message_list:
-            with transaction.atomic():
-                for message in message_list:
-                    message.status = StatusSendChoice.recd.value
-                    message.save()
+            for message in message_list:
+                message.status = StatusSendChoice.recd.value
+                message.save()
         func(*args, **kwargs)
         if message_list:
-            with transaction.atomic():
-                for message in message_list:
-                    message.status = StatusSendChoice.ok.value
-                    message.save()
+            for message in message_list:
+                message.status = StatusSendChoice.ok.value
+                message.save()
+
     return wrapper
