@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3.6 /opt/task-manager/src/manager.py
+ExecStart=/usr/bin/python3.6 /opt/task-manager/src/manager/task_svc.py
 Restart=on-failure
 RestartSec=5s
 
