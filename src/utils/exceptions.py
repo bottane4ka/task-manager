@@ -3,7 +3,7 @@
 
 class FindModuleError(Exception):
     """
-    Ошибка поиска модуля в БД
+    Ошибка поиска службы в базе данных
     """
     pass
 
@@ -16,4 +16,7 @@ class TaskError(Exception):
 
 
 class WorkError(Exception):
+    """
+    Ошибка выполнения задачи
+    """
     pass
