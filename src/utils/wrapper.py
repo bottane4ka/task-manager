@@ -3,6 +3,7 @@
 import time
 import copy
 from sqlalchemy.orm import exc
+from sqlalchemy import desc
 from datetime import datetime
 from functools import wraps
 
@@ -15,15 +16,6 @@ from orm.models import ObjectToCommandLogModel
 from orm.models import TaskLogModel
 from orm.models import ActionModel
 from orm.models import CommandLogModel
-
-
-# from django.db import transaction
-
-
-# GET_MESSAGE = "SELECT * FROM manager.message WHERE s_id = '{}'"
-# UPDATE_STATUS_MESSAGE = "UPDATE manager.message SET status = '{}' WHERE s_id = '{}'"
-# CREATE_MESSAGE = "INSERT INTO manager.message (task_log_id, parent_msg_id, send_id, get_id, data, " \
-#                  "msg_type, status, date_created, command_log_id) VALUES ({item_list})"
 
 
 def task_wrapper(func):
@@ -93,7 +85,7 @@ def task_wrapper(func):
                 post_data["msg_type"] = MsgTypeChoice.error.value if is_error else MsgTypeChoice.success.value
 
             if task_id:
-                post_data["parent_msg_id"] = task_id
+                post_data["parent_msg_id"] = task_id.s_id
                 post_data["task_log_id"] = task_id.task_log_id
                 post_data["command_log_id"] = task_id.command_log_id
 
@@ -163,24 +155,34 @@ def task_model_wrapper(model):
             object_list = None
             if task_id:
                 object_to_task_log_list = None
-                task_log_list = self.session.query(TaskLogModel).filter()
+                task_log_list = self.session.query(TaskLogModel).join(ActionModel).filter(
+                    ActionModel.number <= task_id.task_log.action.number,
+                    TaskLogModel.main_task_log_id == task_id.task_log.main_task_log_id
+                ).order_by(desc(ActionModel.number)).all()
                 # task_log_list = TaskLogModel.objects.filter(
                 #     action_id__number__lte=task_id.task_log_id.action_id.number,
                 #     main_task_log_id=task_id.task_log_id.main_task_log_id
                 # ).order_by("-action_id__number")
-                for task_log_id in task_log_list:
-                    object_to_task_log_list = ObjectToTaskLogModel.objects.filter(task_log_id=task_log_id)
+                for task_log in task_log_list:
+                    object_to_task_log_list = self.session.query(ObjectToTaskLogModel).filter(
+                        ObjectToTaskLogModel.task_log_id == task_log.s_id).all()
+                    # object_to_task_log_list = ObjectToTaskLogModel.objects.filter(task_log_id=task_log_id)
                     if object_to_task_log_list:
                         break
 
                 if not object_to_task_log_list:
-                    message = "Не существует связанных объектов с задачей {}".format(task_id.task_log_id.s_id)
+                    message = "Не существует связанных объектов с задачей {}".format(task_id.task_log_id)
                     return None, True, {"message": message}
                 object_id_list = set([object_to_task_log.object_id for object_to_task_log in object_to_task_log_list])
-                object_list = model.objects.filter(pk__in=object_id_list)
+                if not model.__table__.primary_key:
+                    message = f"Не существует первичного ключа в сущности {model.__table_args__['schema']}.{model.__tablename__}"
+                    return None, True, {"message": message}
+                primary_key = getattr(model, model.__table__.primary_key[0].name)
+                object_list = self.session.query(model).filter(primary_key.in_(object_id_list)).all()
+                # object_list = model.objects.filter(pk__in=object_id_list)
                 if not object_list:
-                    message = "В сущности {} не существует записи с идентификаторами {}".format(
-                        model._meta.verbose_name, ", ".join(object_id_list))
+                    message = "В сущности {}.{} не существует записи с идентификаторами {}".format(
+                        model.__table_args__["schema"], model.__tablename__, ", ".join(object_id_list))
                     return None, True, {"message": message}
 
             return func(*args, task_id=task_id, object_list=object_list, **kwargs)
@@ -237,25 +239,37 @@ def command_model_wrapper(model):
                            - data - данные для сохранения в сущности "Сообщения"
                              (с ключом message для отображения в пользовательском интерфейсе)
             """
+            self = args[0]
             task_id = kwargs.pop("task_id", None)
             object_id = None
             if task_id:
                 try:
-                    s_id = ObjectToCommandLogModel.objects.get(command_log_id=task_id.command_log_id).object_id
-                except ObjectToCommandLogModel.DoesNotExist:
-                    message = "Не существует необходимого связанного объекта с задачей {}".format(
-                        task_id.command_log_id.s_id)
+                    s_id = self.session.query(ObjectToCommandLogModel).filter(
+                        ObjectToCommandLogModel.command_log_id == task_id.command_log_id).one().object_id
+                    # s_id = ObjectToCommandLogModel.objects.get(command_log_id=task_id.command_log_id).object_id
+                # except ObjectToCommandLogModel.DoesNotExist:
+                except exc.NoResultFound:
+                    message = "Не существует необходимого связанного объекта с командой {}".format(
+                        task_id.command_log_id)
                     return None, True, {"message": message}
-                except ObjectToCommandLogModel.MultipleObjectsReturned:
-                    message = "Существует больше одного связанного объекта с задачей {}".format(
-                        task_id.command_log_id.s_id)
+                # except ObjectToCommandLogModel.MultipleObjectsReturned:
+                except exc.MultipleResultsFound:
+                    message = "Существует больше одного связанного объекта с командой {}".format(
+                        task_id.command_log_id)
                     return None, True, {"message": message}
                 else:
+                    if not model.__table__.primary_key:
+                        message = f"Не существует первичного ключа в сущности " \
+                                  f"{model.__table_args__['schema']}.{model.__tablename__}"
+                        return None, True, {"message": message}
+                    primary_key = getattr(model, model.__table__.primary_key[0].name)
                     try:
-                        object_id = model.objects.get(pk=s_id)
-                    except model.DoesNotExist:
-                        message = "В сущности {} не существует записи с идентификатором {}".format(
-                            model._meta.verbose_name, s_id)
+                        object_id = self.session.query(model).filter(primary_key == object_id).one()
+                        # object_id = model.objects.get(pk=s_id)
+                    # except model.DoesNotExist:
+                    except exc.NoResultFound:
+                        message = "В сущности {}.{} не существует записи с идентификатором {}".format(
+                            model.__table_args__["schema"], model.__tablename__, s_id)
                         return None, True, {"message": message}
 
             return func(*args, task_id=task_id, object_id=object_id, **kwargs)
@@ -294,8 +308,8 @@ def info_logger(func):
                       - task_id - идентификатор сообщения из сущности "Сообщения"
         :return: возврат ответа декорируемой функции
         """
+        self = args[0]
         task_id = kwargs.pop("task_id")
-
         result, is_error, data = func(*args, task_id=task_id, **kwargs)
         if data:
             msg_type = data.pop("msg_type", None)
@@ -312,8 +326,9 @@ def info_logger(func):
                 "command_log_id": task_id.command_log_id,
                 "data": data
             }
-
-            MessageModel.objects.create(**post_data)
+            self.session.add(MessageModel(**post_data))
+            self.session.commit()
+            # MessageModel.objects.create(**post_data)
 
         return result, is_error, data
 
@@ -323,15 +338,18 @@ def info_logger(func):
 def message_wrapper(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        self = args[0]
         message_list = args[1]
         if message_list:
             for message in message_list:
                 message.status = StatusSendChoice.recd.value
-                message.save()
+                # message.save()
+            self.session.commit()
+
         func(*args, **kwargs)
         if message_list:
             for message in message_list:
                 message.status = StatusSendChoice.ok.value
-                message.save()
-
+                # message.save()
+            self.session.commit()
     return wrapper

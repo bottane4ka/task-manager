@@ -53,8 +53,6 @@ class BaseSVC(object):
         self._thread_count = thread_count
         self._channel_name = channel_name
         self._e = self.connect()
-        # TODO Создавать несколько пулов потоков, для обработки задач, которые выполняются с разной скоростью
-        # TODO Либо посмотреть как настроить приоритет задач в пуле
         self.pool_task = ThreadPool(self._thread_count)
 
     @property
@@ -154,3 +152,51 @@ class BaseSVC(object):
         :return: True или False
         """
         return True if not self.ldt else False
+
+
+class NotifyCount(object):
+    _ldt = None
+    _count = None
+    _max_count = None
+
+    def __init__(self, max_count: int, wait_time: int):
+        """
+        :param max_count: количество подряд идущих notify
+        :param wait_time: время в секундах, через которое запустить проверку таблицы
+        """
+        self._count = 0
+        self._max_count = max_count
+        self._wait_time = wait_time
+
+    def is_need_add_task(self) -> bool:
+        """
+        Если время пустое - инициализируем время только для первой notify, чтобы разницу во времени считать с первой
+        Если времени не меньше wait_time секунд или количество сообщений пришло не меньше max_count,
+        то обнуляем все и возвращаем True -> следует добавить в очередь задачу для данного канала
+        Иначе инкрементируем на единицу количество пришедших notify и возвращаем False -> ожидаем
+        :return:
+        """
+        self._count += 1
+        if not self._ldt:
+            self._ldt = datetime.now()
+        elif (datetime.now() - self._ldt).seconds >= self._wait_time or self._count >= self._max_count:
+            self._ldt = None
+            self._count = 0
+            return True
+        return False
+
+    def is_need_add_task_by_time(self):
+        if self._ldt and (datetime.now() - self._ldt).seconds >= self._wait_time:
+            self._ldt = None
+            self._count = 0
+            return True
+        return False
+
+    @property
+    def ldt(self):
+        return self._ldt
+
+    @property
+    def wait_time(self):
+        return self._wait_time
+
