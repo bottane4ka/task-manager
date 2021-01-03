@@ -19,12 +19,8 @@ class Worker(Thread):
             try:
                 func, args, kwargs = self.tasks.get(block=True,
                                                     timeout=self._TIMEOUT)
-                try:
-                    func(*args, **kwargs)
-                except Exception as e:
-                    print(e)
-                finally:
-                    self.tasks.task_done()
+                func(*args, **kwargs)
+                self.tasks.task_done()
             except Empty as e:
                 pass
         return
@@ -36,13 +32,13 @@ class Worker(Thread):
 
 class ThreadPool:
     """Pool of threads consuming tasks from a queue"""
-    def __init__(self, num_threads, tasks=list()):
+    def __init__(self, num_threads):
         self.tasks = Queue()
-        self.workers = []
+        self.workers = list()
         self.done = False
         self._init_workers(num_threads)
-        for task in tasks:
-            self.tasks.put(task)
+        # for task in tasks:
+        #     self.tasks.put(task)
 
     def _init_workers(self, num_threads):
         for i in range(num_threads):
@@ -64,8 +60,4 @@ class ThreadPool:
 
     def __del__(self):
         self._close_all_threads()
-
-
-
-
 
