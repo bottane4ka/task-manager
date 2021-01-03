@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION public.notify_me()
 $BODY$
 BEGIN
   -- Создание сообщения в канал DB_NOTIFY и сообщением с наименованием сущности-инициатора
-  SELECT pg_notify('DB_NOTIFY', TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME);
+  EXECUTE 'SELECT pg_notify(''DB_NOTIFY'', ''' || TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME || ''')';
   RETURN NULL;
 END;
 $BODY$
@@ -143,7 +143,6 @@ COMMENT ON COLUMN manager.message.data IS 'Сообщение';
 COMMENT ON COLUMN manager.message.msg_type IS 'Тип сообщения';
 COMMENT ON COLUMN manager.message.status IS 'Статус отправки';
 COMMENT ON COLUMN manager.message.date_created IS 'Дата создания';
-
 
 
 CREATE TABLE manager.method_module (
