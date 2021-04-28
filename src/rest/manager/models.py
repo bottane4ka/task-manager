@@ -1,9 +1,23 @@
 # -*- coding: utf-8 -*-
+from enum import Enum
 from uuid import uuid4
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
-from orm.enum_choice import MsgTypeChoice, StatusSendChoice
+
+
+class StatusSendChoice(Enum):
+    sent = 'Отправлено'
+    recd = 'Получено'
+    ok = 'Обработано'
+
+
+class MsgTypeChoice(Enum):
+    connect = 'Подключение'
+    task = 'Задача'
+    info = 'Информация'
+    success = 'Выполнено'
+    error = 'Ошибка'
+    warning = 'Внимание'
 
 
 class ActionModel(models.Model):
@@ -14,7 +28,6 @@ class ActionModel(models.Model):
     number = models.IntegerField(db_column='number', null=True, blank=True, verbose_name='Порядковый номер')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"action'
         verbose_name = 'Действие'
         verbose_name_plural = 'Действия'
@@ -25,8 +38,7 @@ class BaseTaskModel(models.Model):
     name = models.TextField(db_column='name', null=True, blank=True, verbose_name='Наименование')
 
     class Meta:
-        managed = False
-        db_table = 'manager\".\"template_task'
+        db_table = 'manager\".\"base_task'
         verbose_name = 'Базовая задача'
         verbose_name_plural = 'Базовые задачи'
 
@@ -41,7 +53,6 @@ class CommandModel(models.Model):
     number = models.IntegerField(db_column='number', null=True, blank=True, verbose_name='Порядковый номер')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"command'
         verbose_name = 'Команда'
         verbose_name_plural = 'Команды'
@@ -55,7 +66,6 @@ class CommandLogModel(models.Model):
     status = models.ForeignKey('manager.TaskStatusModel', db_column='status_id', on_delete=models.CASCADE, null=True, blank=True, related_name='command_log_list', verbose_name='Статус выполнения задач')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"command_log'
         verbose_name_plural = 'Аудит выполнения команд'
 
@@ -69,7 +79,6 @@ class BaseTaskLogModel(models.Model):
     end_task_date = models.DateTimeField(db_column='end_task_date', null=True, blank=True, verbose_name='Дата окончания выполнения задачи')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"base_task_log'
         verbose_name_plural = 'Аудит выполнения базовых задач'
 
@@ -82,13 +91,12 @@ class MessageModel(models.Model):
     parent_msg = models.ForeignKey('manager.MessageModel', db_column='parent_msg_id', on_delete=models.CASCADE, null=True, blank=True, related_name='child_list', verbose_name='Родительское сообщение')
     sender = models.ForeignKey('manager.ModuleModel', db_column='sender_id', on_delete=models.CASCADE, null=True, blank=True, related_name='send_message_list', verbose_name='Отправитель')
     recipient = models.ForeignKey('manager.ModuleModel', db_column='recipient_id', on_delete=models.CASCADE, null=True, blank=True, related_name='recipient_message_list', verbose_name='Получатель')
-    data = JSONField(db_column='data', null=True, blank=True, verbose_name='Данные сообщения')
+    data = models.JSONField(db_column='data', null=True, blank=True, verbose_name='Данные сообщения')
     msg_type = models.TextField(db_column='msg_type', choices=[(tag, tag.value) for tag in MsgTypeChoice], null=True, blank=True, verbose_name='Тип сообщения')
     status = models.TextField(db_column='status', choices=[(tag, tag.value) for tag in StatusSendChoice], null=True, blank=True, verbose_name='Статус отправки')
     date_created = models.DateTimeField(db_column='date_created', null=True, blank=True, verbose_name='Дата и время создания')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"message'
         verbose_name_plural = 'Сообщения'
 
@@ -100,7 +108,6 @@ class MethodModuleModel(models.Model):
     system_name = models.TextField(db_column='system_name', null=True, blank=True, verbose_name='Системное наименование')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"method_module'
         verbose_name_plural = 'Методы служб'
 
@@ -113,7 +120,6 @@ class ModuleModel(models.Model):
     status = models.BooleanField(db_column='status', default=False, blank=True, verbose_name='Статус работоспособности')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"module'
         verbose_name_plural = 'Службы'
 
@@ -124,7 +130,6 @@ class ObjectToCommandLogModel(models.Model):
     related_object = models.UUIDField(db_column='object_id', null=True, blank=True, verbose_name='Идентификатор объекта')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"object_to_command_log'
         verbose_name_plural = 'Аудит выполнения команд - Объекты'
 
@@ -135,7 +140,6 @@ class ObjectToTaskLogModel(models.Model):
     related_object = models.UUIDField(db_column='object_id', null=True, blank=True, verbose_name='Идентификатор объекта')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"object_to_task_log'
         verbose_name_plural = 'Аудит выполнения задач - Объекты'
 
@@ -145,7 +149,6 @@ class TaskModel(models.Model):
     name = models.TextField(db_column='name', null=True, blank=True, verbose_name='Наименование')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"task'
         verbose_name_plural = 'Задачи'
 
@@ -157,7 +160,6 @@ class TaskLogModel(models.Model):
     status = models.ForeignKey('manager.TaskStatusModel', db_column='status_id', on_delete=models.CASCADE, null=True, blank=True, related_name='task_log_list', verbose_name='Статус выполнения задач')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"task_log'
         verbose_name_plural = 'Аудит выполнения задач'
 
@@ -169,7 +171,6 @@ class TaskSequenceModel(models.Model):
     number = models.IntegerField(db_column='number', null=True, blank=True, verbose_name='Порядковый номер')
 
     class Meta:
-        managed = False
         db_table = 'manager\".\"task_sequence'
         verbose_name_plural = 'Последовательность задач'
 
@@ -180,7 +181,6 @@ class TaskStatusModel(models.Model):
     system_name = models.TextField(db_column='system_name', null=True, blank=True, verbose_name='Системное наименование')
 
     class Meta:
-        managed = False
-        db_table = 'manager\".\"task_sequence'
+        db_table = 'manager\".\"task_status'
         verbose_name_plural = 'Статусы выполнения задачи'
 
