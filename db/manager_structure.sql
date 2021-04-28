@@ -259,20 +259,20 @@ COMMENT ON COLUMN manager.task_sequence.task_id IS 'Задача';
 COMMENT ON COLUMN manager.task_sequence.number IS 'Порядковый номер';
 
 
-CREATE TABLE manager.task_completion_status
+CREATE TABLE manager.task_status
 (
   s_id uuid NOT NULL DEFAULT uuid_generate_v4(),
   name character varying,
   system_name character varying
 );
 
-ALTER TABLE manager.task_completion_status OWNER TO postgres;
+ALTER TABLE manager.task_status OWNER TO postgres;
 
-COMMENT ON TABLE manager.task_completion_status IS 'Статус выполнения задачи';
+COMMENT ON TABLE manager.task_status IS 'Статус выполнения задачи';
 
-COMMENT ON COLUMN manager.task_completion_status.s_id IS 'Идентификатор';
-COMMENT ON COLUMN manager.task_completion_status.name IS 'Наименование';
-COMMENT ON COLUMN manager.task_completion_status.system_name IS 'Системное наименование';
+COMMENT ON COLUMN manager.task_status.s_id IS 'Идентификатор';
+COMMENT ON COLUMN manager.task_status.name IS 'Наименование';
+COMMENT ON COLUMN manager.task_status.system_name IS 'Системное наименование';
 
 
 ALTER TABLE ONLY manager.action ADD CONSTRAINT action_pkey PRIMARY KEY (s_id);
@@ -287,7 +287,7 @@ ALTER TABLE ONLY manager.object_to_task_log ADD CONSTRAINT object_to_task_log_pk
 ALTER TABLE ONLY manager.task_log ADD CONSTRAINT task_log_pkey PRIMARY KEY (s_id);
 ALTER TABLE ONLY manager.task ADD CONSTRAINT task_pkey PRIMARY KEY (s_id);
 ALTER TABLE ONLY manager.task_sequence ADD CONSTRAINT task_sequence_pkey PRIMARY KEY (s_id);
-ALTER TABLE ONLY manager.task_completion_status ADD CONSTRAINT task_completion_status_pkey PRIMARY KEY (s_id);
+ALTER TABLE ONLY manager.task_status ADD CONSTRAINT task_status_pkey PRIMARY KEY (s_id);
 ALTER TABLE ONLY manager.base_task ADD CONSTRAINT base_task_pkey PRIMARY KEY (s_id);
 
 
@@ -302,14 +302,14 @@ ALTER TABLE ONLY manager.action ADD CONSTRAINT action_task_id_fkey FOREIGN KEY (
 
 ALTER TABLE ONLY manager.command_log ADD CONSTRAINT command_log_command_id_fkey FOREIGN KEY (command_id) REFERENCES manager.command(s_id);
 ALTER TABLE ONLY manager.command_log ADD CONSTRAINT command_log_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES manager.command_log(s_id);
-ALTER TABLE ONLY manager.command_log ADD CONSTRAINT command_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_completion_status(s_id);
+ALTER TABLE ONLY manager.command_log ADD CONSTRAINT command_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_status(s_id);
 ALTER TABLE ONLY manager.command_log ADD CONSTRAINT command_log_task_log_id_fkey FOREIGN KEY (task_log_id) REFERENCES manager.task_log(s_id);
 
 ALTER TABLE ONLY manager.command ADD CONSTRAINT command_action_id_fkey FOREIGN KEY (action_id) REFERENCES manager.action(s_id);
 ALTER TABLE ONLY manager.command ADD CONSTRAINT command_method_id_fkey FOREIGN KEY (method_id) REFERENCES manager.method_module(s_id);
 ALTER TABLE ONLY manager.command ADD CONSTRAINT command_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES manager.command(s_id);
 
-ALTER TABLE ONLY manager.base_task_log ADD CONSTRAINT base_task_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_completion_status(s_id);
+ALTER TABLE ONLY manager.base_task_log ADD CONSTRAINT base_task_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_status(s_id);
 ALTER TABLE ONLY manager.base_task_log ADD CONSTRAINT base_task_log_base_task_id_fkey FOREIGN KEY (base_task_id) REFERENCES manager.base_task(s_id);
 
 ALTER TABLE ONLY manager.message ADD CONSTRAINT message_command_log_id_fkey FOREIGN KEY (command_log_id) REFERENCES manager.command_log(s_id);
@@ -326,15 +326,15 @@ ALTER TABLE ONLY manager.object_to_task_log ADD CONSTRAINT object_to_task_log_ta
 
 ALTER TABLE ONLY manager.task_log ADD CONSTRAINT task_log_action_id_fkey FOREIGN KEY (action_id) REFERENCES manager.action(s_id);
 ALTER TABLE ONLY manager.task_log ADD CONSTRAINT task_log_base_task_log_id_fkey FOREIGN KEY (base_task_log_id) REFERENCES manager.base_task_log(s_id);
-ALTER TABLE ONLY manager.task_log ADD CONSTRAINT task_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_completion_status(s_id);
+ALTER TABLE ONLY manager.task_log ADD CONSTRAINT task_log_status_id_fkey FOREIGN KEY (status_id) REFERENCES manager.task_status(s_id);
 
 ALTER TABLE ONLY manager.task_sequence ADD CONSTRAINT task_sequence_task_id_fkey FOREIGN KEY (task_id) REFERENCES manager.task(s_id);
 ALTER TABLE ONLY manager.task_sequence ADD CONSTRAINT task_sequence_base_task_id_fkey FOREIGN KEY (base_task_id) REFERENCES manager.base_task(s_id);
 
-INSERT INTO manager.task_completion_status (name, system_name) VALUES ('Отменено', 'cancel');
-INSERT INTO manager.task_completion_status (name, system_name) VALUES ('Поставлена', 'set');
-INSERT INTO manager.task_completion_status (name, system_name) VALUES ('Выполняется', 'progress');
-INSERT INTO manager.task_completion_status (name, system_name) VALUES ('Выполнена', 'finish');
-INSERT INTO manager.task_completion_status (name, system_name) VALUES ('Ошибка выполнения', 'error');
+INSERT INTO manager.task_status (name, system_name) VALUES ('Отменено', 'cancel');
+INSERT INTO manager.task_status (name, system_name) VALUES ('Поставлена', 'set');
+INSERT INTO manager.task_status (name, system_name) VALUES ('Выполняется', 'progress');
+INSERT INTO manager.task_status (name, system_name) VALUES ('Выполнена', 'finish');
+INSERT INTO manager.task_status (name, system_name) VALUES ('Ошибка выполнения', 'error');
 
-INSERT INTO manager.module (name, system_name, channel_name) VALUES ('Менеджер задач','task_manager', 'manager_svc');
+INSERT INTO manager.module (name, system_name, channel_name, status) VALUES ('Менеджер задач','task_manager', 'manager_svc', FALSE );

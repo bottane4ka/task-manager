@@ -13,8 +13,8 @@ from manager_svc.settings import MESSAGE_CHANNEL
 from manager_svc.settings import MODULE_SYSTEM_NAME
 from manager_svc.settings import PERIOD_TIME
 from manager_svc.settings import TASK_LOG_CHANNEL
-from orm.enum_choice import MsgTypeChoice
-from orm.enum_choice import StatusSendChoice
+from rest.utils.enum_choice import MsgTypeChoice
+from rest.utils.enum_choice import StatusSendChoice
 from orm.manager.models import ActionModel
 from orm.manager.models import BaseTaskLogModel
 from orm.manager.models import CommandLogModel
