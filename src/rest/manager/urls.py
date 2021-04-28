@@ -1,9 +1,9 @@
 from django.conf.urls import url, include
-from rest_framework import routers
+from rest.utils.routers import CustomRouter
 
 from manager import views
 
-router = routers.DefaultRouter()
+router = CustomRouter()
 router.register(r"task-status", views.TaskStatusViewSet, basename="task-status")
 
 urlpatterns = [

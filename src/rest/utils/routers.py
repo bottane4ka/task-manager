@@ -1,17 +1,42 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+from rest_framework.settings import api_settings
+from rest_framework.routers import SimpleRouter, DynamicRoute
 
-from rest_framework.routers import DefaultRouter
+Route = namedtuple('Route', ['url', 'mapping', 'name', 'detail', 'initkwargs'])
 
 
-class CustomRouter(DefaultRouter):
+class CustomRouter(SimpleRouter):
 
-    def get_api_root_view(self, api_urls=None):
-        """
-        Return a basic root view.
-        """
-        api_root_dict = OrderedDict()
-        list_name = self.routes[0].name
-        for prefix, viewset, basename in self.registry:
-            api_root_dict[prefix] = list_name.format(basename=basename)
+    routes = [
+        # List route.
+        Route(
+            url=r'^{prefix}/list/$',
+            mapping={
+                'get': 'list'
+            },
+            name='{basename}-list',
+            detail=False,
+            initkwargs={'suffix': 'List'}
+        ),
+        # Detail route.
+        Route(
+            url=r'^{prefix}/$',
+            mapping={
+                'get': 'retrieve',
+                'put': 'update',
+                'patch': 'partial_update',
+                'delete': 'destroy'
+            },
+            name='{basename}-detail',
+            detail=True,
+            initkwargs={'suffix': 'Instance'}
+        )
+    ]
 
-        return self.APIRootView.as_view(api_root_dict=api_root_dict)
+    def __init__(self, *args, **kwargs):
+        if 'root_renderers' in kwargs:
+            self.root_renderers = kwargs.pop('root_renderers')
+        else:
+            self.root_renderers = list(api_settings.DEFAULT_RENDERER_CLASSES)
+        super().__init__(*args, **kwargs)
+
