@@ -1,36 +1,34 @@
 # -*- coding: utf-8 -*-
-import uuid
 import json
-from datetime import datetime
-# from django.conf import settings as main_settings
-from django.db.models import Q
-from settings import MODULE_SYSTEM_NAME
-from settings import TASK_LOG_CHANNEL
-from settings import MESSAGE_CHANNEL
-from settings import MAIN_TASK_LOG_CHANNEL
-from settings import COMMAND_LOG_CHANNEL
-from settings import PERIOD_TIME
-from settings import DB_HOST, DB_PORT, DB_NAME, DB_USER
-
+import uuid
 from collections import namedtuple
+from datetime import datetime
 
+from django.db.models import Q
+
+from manager_svc.settings import COMMAND_LOG_CHANNEL
+from manager_svc.settings import DB_HOST, DB_PORT, DB_NAME, DB_USER
+from manager_svc.settings import MAIN_TASK_LOG_CHANNEL
+from manager_svc.settings import MESSAGE_CHANNEL
+from manager_svc.settings import MODULE_SYSTEM_NAME
+from manager_svc.settings import PERIOD_TIME
+from manager_svc.settings import TASK_LOG_CHANNEL
+from orm.enum_choice import MsgTypeChoice
+from orm.enum_choice import StatusSendChoice
+from orm.manager.models import ActionModel
+from orm.manager.models import BaseTaskLogModel
+from orm.manager.models import CommandLogModel
+from orm.manager.models import CommandModel
+from orm.manager.models import MessageModel
+from orm.manager.models import MethodModuleModel
+from orm.manager.models import ModuleModel
+from orm.manager.models import ObjectToCommandLogModel
+from orm.manager.models import TaskStatusModel
+from orm.manager.models import TaskLogModel
+from orm.manager.models import TaskSequenceModel
 from utils.base_utils.base_class import BaseSVC
 from utils.exceptions import FindModuleError
 from utils.wrapper import message_wrapper
-
-from utils.status_type import MsgTypeChoice
-from utils.status_type import StatusSendChoice
-from models import ModuleModel
-from models import MainTaskLogModel
-from models import TaskSequenceModel
-from models import ObjectToCommandLogModel
-from models import TaskLogModel
-from models import CommandLogModel
-from models import ActionModel
-from models import CommandModel
-from models import MethodModuleModel
-from models import MessageModel
-from models import StatusTaskModel
 
 FuncInfo = namedtuple("FuncInfo", "name max_count wait_time")
 
@@ -122,13 +120,13 @@ class TaskSVC(BaseSVC):
         Поиск изменений в сущности "Аудит выполнения базовых задач"
         :return:
         """
-        main_task_log_list = MainTaskLogModel.objects.filter(
+        main_task_log_list = BaseTaskLogModel.objects.filter(
             status_id__system_name="progress", task_log_list__isnull=True
         )
         if main_task_log_list:
             self.pool_task.add_task(self.create_task_log, main_task_log_list)
 
-        main_task_log_list = MainTaskLogModel.objects.filter(
+        main_task_log_list = BaseTaskLogModel.objects.filter(
             status_id__system_name="cancel", task_log_list__isnull=False
         )
         if main_task_log_list:
@@ -152,7 +150,7 @@ class TaskSVC(BaseSVC):
         if task_log_list:
             self.pool_task.add_task(self.cancel_command_log, task_log_list)
 
-        main_task_log = MainTaskLogModel.objects.filter(
+        main_task_log = BaseTaskLogModel.objects.filter(
             status_id__system_name="progress"
         ).distinct()
         if main_task_log:
@@ -250,8 +248,8 @@ class TaskSVC(BaseSVC):
         :param main_task_log_list: список задач из сущности "Аудит выполнения базовых задач"
         :return:
         """
-        status_set = StatusTaskModel.objects.get(system_name="set")
-        status_progress = StatusTaskModel.objects.get(system_name="progress")
+        status_set = TaskStatusModel.objects.get(system_name="set")
+        status_progress = TaskStatusModel.objects.get(system_name="progress")
         for main_task_log in main_task_log_list:
             task_log_list = list()
             task_sequence_list = TaskSequenceModel.objects.filter(
@@ -277,7 +275,7 @@ class TaskSVC(BaseSVC):
         :param main_task_log_list: списокй записей из сущности "Аудит выполнения базовых задач"
         :return:
         """
-        status = StatusTaskModel.objects.get(system_name="cancel")
+        status = TaskStatusModel.objects.get(system_name="cancel")
         task_log_list = TaskLogModel.objects.filter(main_task_log_id__in=main_task_log_list,
                                                     status_id__system_name="set")
         task_log_list.update(status_id=status)
@@ -290,7 +288,7 @@ class TaskSVC(BaseSVC):
         :param is_restart: признак перезапуска
         :return:
         """
-        status = StatusTaskModel.objects.get(system_name="progress")
+        status = TaskStatusModel.objects.get(system_name="progress")
         for log_item in log_list:
             is_new = False
             if is_command:
@@ -346,8 +344,8 @@ class TaskSVC(BaseSVC):
         :param main_task_log_list: список записей из сущности "Аудит выполнения базовых задач"
         :return:
         """
-        f_status = StatusTaskModel.objects.get(system_name="finish")
-        e_status = StatusTaskModel.objects.get(system_name="error")
+        f_status = TaskStatusModel.objects.get(system_name="finish")
+        e_status = TaskStatusModel.objects.get(system_name="error")
         for main_task_log in main_task_log_list:
             e_command_log_list = TaskLogModel.objects.filter(main_task_log_id=main_task_log, status_id=e_status)
             not_command_log_list = TaskLogModel.objects.filter(
@@ -368,7 +366,7 @@ class TaskSVC(BaseSVC):
         :param is_command: признак того, что данные из сущности "Аудит выполнения команд"
         :return:
         """
-        status = StatusTaskModel.objects.get(system_name="cancel")
+        status = TaskStatusModel.objects.get(system_name="cancel")
         for log_item in log_list:
             command_log_list = log_item.command_log_list.filter(status_id__system_name="set")
             command_log_list.update(status_id=status)
@@ -384,7 +382,7 @@ class TaskSVC(BaseSVC):
         :param is_command: признак того, что данные из сущности "Аудит выполнения команд"
         :return:
         """
-        status = StatusTaskModel.objects.get(system_name="progress")
+        status = TaskStatusModel.objects.get(system_name="progress")
         for log_item in log_list:
             command_log = log_item.command_log_list.filter(
                 status_id__system_name="finish").order_by("command_id__number").last()
@@ -410,8 +408,8 @@ class TaskSVC(BaseSVC):
         :param is_command: признак того, что данные из сущности "Аудит выполнения команд"
         :return:
         """
-        f_status = StatusTaskModel.objects.get(system_name="finish")
-        e_status = StatusTaskModel.objects.get(system_name="error")
+        f_status = TaskStatusModel.objects.get(system_name="finish")
+        e_status = TaskStatusModel.objects.get(system_name="error")
         for log in log_list:
             if is_command:
                 command_log_list = CommandLogModel.objects.filter(parent_id=log)
@@ -459,8 +457,8 @@ class TaskSVC(BaseSVC):
         :param message_list: список записей из сущности "Сообщения"
         :return:
         """
-        status_set = StatusTaskModel.objects.get(system_name="set")
-        status_progress = StatusTaskModel.objects.get(system_name="progress")
+        status_set = TaskStatusModel.objects.get(system_name="set")
+        status_progress = TaskStatusModel.objects.get(system_name="progress")
         for message in message_list:
             method_list = message.data.get("method_list", None)
             object_list = message.data.get("object_list", None)
@@ -501,8 +499,8 @@ class TaskSVC(BaseSVC):
         :return:
         """
         status_dict = {
-            MsgTypeChoice.success.value: StatusTaskModel.objects.get(system_name="finish"),
-            MsgTypeChoice.error.value: StatusTaskModel.objects.get(system_name="error")
+            MsgTypeChoice.success.value: TaskStatusModel.objects.get(system_name="finish"),
+            MsgTypeChoice.error.value: TaskStatusModel.objects.get(system_name="error")
         }
         for message in message_list:
             message.command_log_id.status_id = status_dict[message.msg_type]
@@ -516,8 +514,8 @@ class TaskSVC(BaseSVC):
         :return:
         """
         status_dict = {
-            MsgTypeChoice.success.value: StatusTaskModel.objects.get(system_name="finish"),
-            MsgTypeChoice.error.value: StatusTaskModel.objects.get(system_name="error")
+            MsgTypeChoice.success.value: TaskStatusModel.objects.get(system_name="finish"),
+            MsgTypeChoice.error.value: TaskStatusModel.objects.get(system_name="error")
         }
         for message in message_list:
             message.task_log_id.status_id = status_dict[message.msg_type]

@@ -16,3 +16,4 @@ class MsgTypeChoice(Enum):
     error = 'Ошибка'
     warning = 'Внимание'
 
+

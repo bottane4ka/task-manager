@@ -9,7 +9,7 @@ from utils.status_type import MsgTypeChoice
 
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import exc
-from orm.models import ModuleModel
+from orm.manager.models import ModuleModel
 
 
 class BaseFunctionalSVC(BaseSVC):

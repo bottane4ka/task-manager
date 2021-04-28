@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import time
-import copy
 from sqlalchemy.orm import exc
 from sqlalchemy import desc
 from datetime import datetime
@@ -10,12 +8,11 @@ from functools import wraps
 from status_type import StatusSendChoice
 from status_type import MsgTypeChoice
 
-from orm.models import MessageModel
-from orm.models import ObjectToTaskLogModel
-from orm.models import ObjectToCommandLogModel
-from orm.models import TaskLogModel
-from orm.models import ActionModel
-from orm.models import CommandLogModel
+from orm.manager.models import MessageModel
+from orm.manager.models import ObjectToTaskLogModel
+from orm.manager.models import ObjectToCommandLogModel
+from orm.manager.models import TaskLogModel
+from orm.manager.models import ActionModel
 
 
 def task_wrapper(func):
