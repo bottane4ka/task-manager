@@ -14,7 +14,7 @@ class CustomRouter(SimpleRouter):
             mapping={
                 'get': 'list'
             },
-            name='{basename}-list',
+            name='{basename}_list',
             detail=False,
             initkwargs={'suffix': 'List'}
         ),
@@ -27,7 +27,7 @@ class CustomRouter(SimpleRouter):
                 'patch': 'partial_update',
                 'delete': 'destroy'
             },
-            name='{basename}-detail',
+            name='{basename}_detail',
             detail=True,
             initkwargs={'suffix': 'Instance'}
         )
