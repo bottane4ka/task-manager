@@ -3,6 +3,7 @@ from enum import Enum
 from uuid import uuid4
 
 from django.db import models
+from django.contrib.postgres.fields import JSONField
 
 
 class StatusSendChoice(Enum):
@@ -91,7 +92,7 @@ class MessageModel(models.Model):
     parent_msg = models.ForeignKey('manager.MessageModel', db_column='parent_msg_id', on_delete=models.CASCADE, null=True, blank=True, related_name='child_list', verbose_name='Родительское сообщение')
     sender = models.ForeignKey('manager.ModuleModel', db_column='sender_id', on_delete=models.CASCADE, null=True, blank=True, related_name='send_message_list', verbose_name='Отправитель')
     recipient = models.ForeignKey('manager.ModuleModel', db_column='recipient_id', on_delete=models.CASCADE, null=True, blank=True, related_name='recipient_message_list', verbose_name='Получатель')
-    data = models.JSONField(db_column='data', null=True, blank=True, verbose_name='Данные сообщения')
+    data = JSONField(db_column='data', null=True, blank=True, verbose_name='Данные сообщения')
     msg_type = models.TextField(db_column='msg_type', choices=[(tag, tag.value) for tag in MsgTypeChoice], null=True, blank=True, verbose_name='Тип сообщения')
     status = models.TextField(db_column='status', choices=[(tag, tag.value) for tag in StatusSendChoice], null=True, blank=True, verbose_name='Статус отправки')
     date_created = models.DateTimeField(db_column='date_created', null=True, blank=True, verbose_name='Дата и время создания')

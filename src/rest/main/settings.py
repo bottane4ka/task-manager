@@ -11,19 +11,30 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
+import environ
+import structlog
+from labelgun.integrations.structlog_utils import (
+    convert_event_dict_to_str_processor,
+    dict_msg_processor,
+)
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
+def get_host(host_value):
+    return "127.0.0.1" if LOCAL_MODE else host_value
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-e(xqhxu+2r1h-xf=seh*i1@da_3%pq*(=4yud-ak9rvv#hvqm*'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+env = environ.Env()
+BASE_DIR = environ.Path(__file__) - 1
+BASE_ROOT_DIR = BASE_DIR - 3
 
+env.read_env(str(BASE_ROOT_DIR.path(".env")))
+
+LOCAL_MODE = env.bool("LOCAL_MODE", default=True)
+LOG_MOD = env.str("LOG_MOD", default="simple")
+CURRENT_ENV = env.str("CURRENT_ENV", default="dev")
+
+SECRET_KEY = env.str("DJANGO_SECRET_KEY")
+DEBUG = True if CURRENT_ENV == "dev" else False
 ALLOWED_HOSTS = []
 
 # Application definition
@@ -79,10 +90,10 @@ DATABASES = {
         'OPTIONS': {
             'options': '-c search_path=manager,public',
         },
-        'NAME': 'task_manager',
-        'USER': 'postgres',
-        'HOST': '/var/run/postgresql',
-        'PORT': '5434',
+        "NAME": env.str("POSTGRES_DB"),
+        "USER": env.str("POSTGRES_USER"),
+        "HOST": get_host(env.str("POSTGRES_HOST")),
+        "PORT": env.int("POSTGRES_PORT", default=5432),
     }
 }
 
@@ -104,25 +115,91 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/3.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+LANGUAGE_CODE = 'ru-RU'
+TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+if LOG_MOD == "json":
+    # Порядок процессоров не менять без явной необходимости
+    structlog_processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.format_exc_info,
+        convert_event_dict_to_str_processor,
+        dict_msg_processor,
+    ]
+    default_formatter = {
+        "()": "labelgun.integrations.logging_utils.StructlogJsonFormatter",
+        "json_ensure_ascii": False,
+        "proc": structlog_processors,
+    }
+else:
+    structlog_processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.format_exc_info,
+        structlog.dev.ConsoleRenderer(),
+    ]
+    default_formatter = {"format": "%(message)s"}
+
+structlog.configure(
+    processors=structlog_processors,
+    context_class=structlog.threadlocal.wrap_dict(dict),
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
+LOGGING = {
+    "version": 1,
+    "filters": {
+        "require_debug_false": {"()": "django.utils.log.RequireDebugFalse"},
+        "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
+    },
+    "formatters": {
+        "default_formatter": default_formatter,
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(pathname)s %(funcName)s %(lineno)d %(process)d %(thread)d %(message)s",
+            "datefmt": "%d/%m/%Y %H:%M:%S",
+        },
+    },
+    "handlers": {
+        # "null": {"level": "DEBUG", "class": "logging.NullHandler"},
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "default_formatter",
+            "filters": ["require_debug_true"],
+        },
+        # "mail_admins": {
+        #     "level": "ERROR",
+        #     "class": "django.utils.log.AdminEmailHandler",
+        #     "include_html": True,
+        #     "filters": ["require_debug_false"],
+        # },
+    },
+    "loggers": {
+        # "": {"handlers": ["mail_admins"], "level": "INFO", "propagate": False},
+        # "django": {"handlers": ["console", "mail_admins"], "level": "INFO", "propagate": False},
+        "django.db.backends": {"handlers": ["console"], "level": "DEBUG"},
+        # "django.utils.autoreload": {"level": "INFO"},
+        # "py.warnings": {"handlers": ["mail_admins"]}
+    },
+}
