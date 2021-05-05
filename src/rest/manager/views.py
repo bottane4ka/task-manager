@@ -26,7 +26,7 @@ from manager.serializer import TaskLogSerializer
 from manager.serializer import TaskSequenceSerializer
 from manager.serializer import TaskSerializer
 from manager.serializer import TaskStatusSerializer
-from rest.utils import viewsets
+from rest.brave_rest_framework import viewsets
 
 
 class ActionViewSet(viewsets.CustomModelViewSet):

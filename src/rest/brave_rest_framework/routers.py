@@ -11,7 +11,7 @@ class CustomRouter(SimpleRouter):
     routes = [
         # List route.
         Route(
-            url=r"^{prefix}/list/$",
+            url=r"^{prefix}/list$",
             mapping={"get": "list"},
             name="{basename}_list",
             detail=False,
@@ -24,7 +24,6 @@ class CustomRouter(SimpleRouter):
                 "get": "retrieve",
                 "post": "create",
                 "put": "update",
-                "patch": "partial_update",
                 "delete": "destroy",
             },
             name="{basename}_detail",

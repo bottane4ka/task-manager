@@ -12,7 +12,7 @@ from manager.models import TaskLogModel
 from manager.models import TaskModel
 from manager.models import TaskSequenceModel
 from manager.models import TaskStatusModel
-from rest.utils.serializers import CustomSerializer
+from rest.brave_rest_framework.serializers import CustomSerializer
 
 
 class TaskStatusSerializer(CustomSerializer):

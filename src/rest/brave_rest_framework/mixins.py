@@ -7,7 +7,7 @@ from rest_framework.relations import PKOnlyObject
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
-from rest.utils.exceptions import GetObjectException, FilterException
+from rest.brave_rest_framework.exceptions import GetObjectException, FilterException
 
 
 class CustomCreateModelMixin(mixins.CreateModelMixin):

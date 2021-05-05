@@ -1,6 +1,9 @@
 from rest_framework.serializers import ModelSerializer
 
-from rest.utils.mixins import CustomSerializationMixin, CustomDeserializationMixin
+from rest.brave_rest_framework.mixins import (
+    CustomSerializationMixin,
+    CustomDeserializationMixin,
+)
 
 
 class CustomSerializer(

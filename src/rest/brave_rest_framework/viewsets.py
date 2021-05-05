@@ -1,6 +1,6 @@
-from rest.utils import mixins
+from rest.brave_rest_framework import mixins
 from rest_framework.viewsets import GenericViewSet
-from rest.utils.exceptions import GetObjectException, FilterException
+from rest.brave_rest_framework.exceptions import GetObjectException, FilterException
 
 
 class CustomGenericViewSet(GenericViewSet):

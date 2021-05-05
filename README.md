@@ -3,12 +3,16 @@
 #### Структура
 ```bash
 task-manager
-├── conf
 ├── db
 ├── docs
 └── src
-    ├── manager
-    ├── orm
+    ├── manager_svc
+    │    └── conf
+    ├── rest
+    │    ├── brave_rest_framework
+    │    ├── main
+    │    └── manager
+    │        └── migrations
     └── utils
         └── base_utils
 ```
