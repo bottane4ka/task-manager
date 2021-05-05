@@ -127,5 +127,5 @@ class CustomSerializationMixin:
 
     def _get_link(self, instance):
         pk_name = instance._meta.pk.name
-        url = reverse(f"{self.Meta.model._meta.db_table}_detail")
+        url = reverse(f"{self.Meta.model._meta.db_tablespace}_{self.Meta.model._meta.db_table}_detail")
         return f"{url}?{pk_name}={instance.pk}"
