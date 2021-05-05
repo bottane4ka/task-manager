@@ -37,59 +37,52 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 DEBUG = True if CURRENT_ENV == "dev" else False
 ALLOWED_HOSTS = []
 
-# Application definition
-
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'manager',
-    'utils'
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "manager",
+    "utils",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'main.urls'
+ROOT_URLCONF = "main.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
         },
-    },
+    }
 ]
 
-WSGI_APPLICATION = 'main.wsgi.application'
-
-# Database
-# https://docs.djangoproject.com/en/3.2/ref/settings/#databases
+WSGI_APPLICATION = "main.wsgi.application"
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'OPTIONS': {
-            'options': '-c search_path=manager,public',
-        },
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "OPTIONS": {"options": "-c search_path=manager,public"},
         "NAME": env.str("POSTGRES_DB"),
         "USER": env.str("POSTGRES_USER"),
         "HOST": get_host(env.str("POSTGRES_HOST")),
@@ -97,40 +90,30 @@ DATABASES = {
     }
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 
-LANGUAGE_CODE = 'ru-RU'
-TIME_ZONE = 'Europe/Moscow'
+LANGUAGE_CODE = "ru-RU"
+TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
 
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 if LOG_MOD == "json":
-    # Порядок процессоров не менять без явной необходимости
     structlog_processors = [
         structlog.stdlib.filter_by_level,
         structlog.processors.TimeStamper(fmt="iso"),
@@ -159,13 +142,13 @@ else:
     ]
     default_formatter = {"format": "%(message)s"}
 
-structlog.configure(
-    processors=structlog_processors,
-    context_class=structlog.threadlocal.wrap_dict(dict),
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,
-    cache_logger_on_first_use=True,
-)
+# structlog.configure(
+#     processors=structlog_processors,
+#     context_class=structlog.threadlocal.wrap_dict(dict),
+#     logger_factory=structlog.stdlib.LoggerFactory(),
+#     wrapper_class=structlog.stdlib.BoundLogger,
+#     cache_logger_on_first_use=True,
+# )
 
 LOGGING = {
     "version": 1,
@@ -181,25 +164,15 @@ LOGGING = {
         },
     },
     "handlers": {
-        # "null": {"level": "DEBUG", "class": "logging.NullHandler"},
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "default_formatter",
             "filters": ["require_debug_true"],
-        },
-        # "mail_admins": {
-        #     "level": "ERROR",
-        #     "class": "django.utils.log.AdminEmailHandler",
-        #     "include_html": True,
-        #     "filters": ["require_debug_false"],
-        # },
+        }
     },
     "loggers": {
-        # "": {"handlers": ["mail_admins"], "level": "INFO", "propagate": False},
-        # "django": {"handlers": ["console", "mail_admins"], "level": "INFO", "propagate": False},
-        "django.db.backends": {"handlers": ["console"], "level": "DEBUG"},
-        # "django.utils.autoreload": {"level": "INFO"},
-        # "py.warnings": {"handlers": ["mail_admins"]}
+        "django": {"handlers": ["console"], "level": "INFO"},
+        # "django.db.backends": {"handlers": ["console"], "level": "DEBUG"}
     },
 }

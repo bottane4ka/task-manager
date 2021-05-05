@@ -5,11 +5,9 @@ from datetime import datetime
 from utils.exceptions import FindModuleError, TaskError
 from utils.wrapper import message_wrapper, task_wrapper
 from utils.base_utils.base_class import BaseSVC
-from utils.status_type import MsgTypeChoice
+from rest.manager.models import MsgTypeChoice
 
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import exc
-from orm.manager.models import ModuleModel
+from rest.manager.models import ModuleModel
 
 
 class BaseFunctionalSVC(BaseSVC):
@@ -29,8 +27,17 @@ class BaseFunctionalSVC(BaseSVC):
     _module = None
     _manager = None
 
-    def __init__(self, system_name: str, thread_count: int, host: str, port: str, db_name: str, user: str,
-                 channel_name: str, manager_name: str) -> None:
+    def __init__(
+        self,
+        system_name: str,
+        thread_count: int,
+        host: str,
+        port: str,
+        db_name: str,
+        user: str,
+        channel_name: str,
+        manager_name: str,
+    ) -> None:
         """
         Конструктор класса
 
@@ -49,7 +56,6 @@ class BaseFunctionalSVC(BaseSVC):
         :param manager_name: системное наименование менеджера задач
         """
         BaseSVC.__init__(self, thread_count, host, port, db_name, user, channel_name)
-        self.session = Session(bind=self.e)
         self.module = system_name
         self.manager = manager_name
 
@@ -61,13 +67,14 @@ class BaseFunctionalSVC(BaseSVC):
     def module(self, system_name: str) -> None:
         self._module = self._get_module_info(system_name)
 
-    def _get_module_info(self, system_name: str) -> ModuleModel:
+    @staticmethod
+    def _get_module_info(system_name: str) -> ModuleModel:
         try:
-            data = self.session.query(ModuleModel).filter(ModuleModel.system_name == system_name).one()
-        except exc.NoResultFound:
+            data = ModuleModel.objects.get(system_name=system_name)
+        except ModuleModel.DoesNotExist:
             message = f"Ошибка. Не существует службы {system_name}"
             raise FindModuleError(message)
-        except exc.MultipleResultsFound:
+        except ModuleModel.MultipleObjectsReturned:
             message = f"Ошибка. Существует несколько служб {system_name}"
             raise FindModuleError(message)
         return data
@@ -90,10 +97,10 @@ class BaseFunctionalSVC(BaseSVC):
 
         :return:
         """
-        self.table_list = [self.module["channel_name"]]
+        self.table_list = self.module.channel_name
         BaseSVC.run(self)
         self.module.status = False
-        self.session.commit()
+        self.module.save()
 
     def add_task(self, channel: str, data: str) -> None:
         """
@@ -122,9 +129,14 @@ class BaseFunctionalSVC(BaseSVC):
 
         msg_type = data.get("msg_type")
         if msg_type == MsgTypeChoice.connect.value:
-            # data["method"] = "connect"
-            self._connect([task_id] if task_id else None, task_id=task_id, data=data, msg_type=msg_type,
-                          send_id=self.module, get_id=self.manager)
+            self._connect(
+                [task_id] if task_id else None,
+                task_id=task_id,
+                data=data,
+                msg_type=msg_type,
+                send_id=self.module,
+                get_id=self.manager,
+            )
         else:
             try:
                 method = data.get("method", None)
@@ -134,13 +146,20 @@ class BaseFunctionalSVC(BaseSVC):
                 try:
                     func = getattr(self, data["method"])
                 except AttributeError:
-                    message = "{} не имеет метод {}".format(self.module["name"], data["method"])
+                    message = "{} не имеет метод {}".format(
+                        self.module.name, data["method"]
+                    )
                     raise TaskError(message)
 
                 self.pool_task.add_task(func, task_id=task_id, **data)
             except TaskError as ex:
-                self.pool_task.add_task(self._error_method, task_id=task_id, data={"message": str(ex)},
-                                        send_id=self.module, get_id=self.manager)
+                self.pool_task.add_task(
+                    self._error_method,
+                    task_id=task_id,
+                    data={"message": str(ex)},
+                    send_id=self.module,
+                    get_id=self.manager,
+                )
 
     def period_task(self) -> None:
         """

@@ -55,7 +55,11 @@ def task_wrapper(func):
         is_error = False
         if task_id:
             try:
-                task_id = self.session.query(MessageModel).filter(MessageModel.s_id == task_id).one()
+                task_id = (
+                    self.session.query(MessageModel)
+                    .filter(MessageModel.s_id == task_id)
+                    .one()
+                )
             except exc.NoResultFound:
                 # message = "Не существует сообщения с идентификатором {}".format(task_id)
                 is_error = True
@@ -79,7 +83,11 @@ def task_wrapper(func):
             elif data and "msg_type" in data:
                 post_data["msg_type"] = data["msg_type"]
             else:
-                post_data["msg_type"] = MsgTypeChoice.error.value if is_error else MsgTypeChoice.success.value
+                post_data["msg_type"] = (
+                    MsgTypeChoice.error.value
+                    if is_error
+                    else MsgTypeChoice.success.value
+                )
 
             if task_id:
                 post_data["parent_msg_id"] = task_id.s_id
@@ -152,34 +160,58 @@ def task_model_wrapper(model):
             object_list = None
             if task_id:
                 object_to_task_log_list = None
-                task_log_list = self.session.query(TaskLogModel).join(ActionModel).filter(
-                    ActionModel.number <= task_id.task_log.action.number,
-                    TaskLogModel.main_task_log_id == task_id.task_log.main_task_log_id
-                ).order_by(desc(ActionModel.number)).all()
+                task_log_list = (
+                    self.session.query(TaskLogModel)
+                    .join(ActionModel)
+                    .filter(
+                        ActionModel.number <= task_id.task_log.action.number,
+                        TaskLogModel.main_task_log_id
+                        == task_id.task_log.main_task_log_id,
+                    )
+                    .order_by(desc(ActionModel.number))
+                    .all()
+                )
                 # task_log_list = TaskLogModel.objects.filter(
                 #     action_id__number__lte=task_id.task_log_id.action_id.number,
                 #     main_task_log_id=task_id.task_log_id.main_task_log_id
                 # ).order_by("-action_id__number")
                 for task_log in task_log_list:
-                    object_to_task_log_list = self.session.query(ObjectToTaskLogModel).filter(
-                        ObjectToTaskLogModel.task_log_id == task_log.s_id).all()
+                    object_to_task_log_list = (
+                        self.session.query(ObjectToTaskLogModel)
+                        .filter(ObjectToTaskLogModel.task_log_id == task_log.s_id)
+                        .all()
+                    )
                     # object_to_task_log_list = ObjectToTaskLogModel.objects.filter(task_log_id=task_log_id)
                     if object_to_task_log_list:
                         break
 
                 if not object_to_task_log_list:
-                    message = "Не существует связанных объектов с задачей {}".format(task_id.task_log_id)
+                    message = "Не существует связанных объектов с задачей {}".format(
+                        task_id.task_log_id
+                    )
                     return None, True, {"message": message}
-                object_id_list = set([object_to_task_log.object_id for object_to_task_log in object_to_task_log_list])
+                object_id_list = set(
+                    [
+                        object_to_task_log.object_id
+                        for object_to_task_log in object_to_task_log_list
+                    ]
+                )
                 if not model.__table__.primary_key:
                     message = f"Не существует первичного ключа в сущности {model.__table_args__['schema']}.{model.__tablename__}"
                     return None, True, {"message": message}
                 primary_key = getattr(model, model.__table__.primary_key[0].name)
-                object_list = self.session.query(model).filter(primary_key.in_(object_id_list)).all()
+                object_list = (
+                    self.session.query(model)
+                    .filter(primary_key.in_(object_id_list))
+                    .all()
+                )
                 # object_list = model.objects.filter(pk__in=object_id_list)
                 if not object_list:
                     message = "В сущности {}.{} не существует записи с идентификаторами {}".format(
-                        model.__table_args__["schema"], model.__tablename__, ", ".join(object_id_list))
+                        model.__table_args__["schema"],
+                        model.__tablename__,
+                        ", ".join(object_id_list),
+                    )
                     return None, True, {"message": message}
 
             return func(*args, task_id=task_id, object_list=object_list, **kwargs)
@@ -241,32 +273,48 @@ def command_model_wrapper(model):
             object_id = None
             if task_id:
                 try:
-                    s_id = self.session.query(ObjectToCommandLogModel).filter(
-                        ObjectToCommandLogModel.command_log_id == task_id.command_log_id).one().object_id
+                    s_id = (
+                        self.session.query(ObjectToCommandLogModel)
+                        .filter(
+                            ObjectToCommandLogModel.command_log_id
+                            == task_id.command_log_id
+                        )
+                        .one()
+                        .object_id
+                    )
                     # s_id = ObjectToCommandLogModel.objects.get(command_log_id=task_id.command_log_id).object_id
                 # except ObjectToCommandLogModel.DoesNotExist:
                 except exc.NoResultFound:
                     message = "Не существует необходимого связанного объекта с командой {}".format(
-                        task_id.command_log_id)
+                        task_id.command_log_id
+                    )
                     return None, True, {"message": message}
                 # except ObjectToCommandLogModel.MultipleObjectsReturned:
                 except exc.MultipleResultsFound:
                     message = "Существует больше одного связанного объекта с командой {}".format(
-                        task_id.command_log_id)
+                        task_id.command_log_id
+                    )
                     return None, True, {"message": message}
                 else:
                     if not model.__table__.primary_key:
-                        message = f"Не существует первичного ключа в сущности " \
-                                  f"{model.__table_args__['schema']}.{model.__tablename__}"
+                        message = (
+                            f"Не существует первичного ключа в сущности "
+                            f"{model.__table_args__['schema']}.{model.__tablename__}"
+                        )
                         return None, True, {"message": message}
                     primary_key = getattr(model, model.__table__.primary_key[0].name)
                     try:
-                        object_id = self.session.query(model).filter(primary_key == object_id).one()
+                        object_id = (
+                            self.session.query(model)
+                            .filter(primary_key == object_id)
+                            .one()
+                        )
                         # object_id = model.objects.get(pk=s_id)
                     # except model.DoesNotExist:
                     except exc.NoResultFound:
                         message = "В сущности {}.{} не существует записи с идентификатором {}".format(
-                            model.__table_args__["schema"], model.__tablename__, s_id)
+                            model.__table_args__["schema"], model.__tablename__, s_id
+                        )
                         return None, True, {"message": message}
 
             return func(*args, task_id=task_id, object_id=object_id, **kwargs)
@@ -321,7 +369,7 @@ def info_logger(func):
                 "parent_msg_id": task_id,
                 "task_log_id": task_id.task_log_id,
                 "command_log_id": task_id.command_log_id,
-                "data": data
+                "data": data,
             }
             self.session.add(MessageModel(**post_data))
             self.session.commit()
@@ -349,4 +397,5 @@ def message_wrapper(func):
                 message.status = StatusSendChoice.ok.value
                 # message.save()
             self.session.commit()
+
     return wrapper

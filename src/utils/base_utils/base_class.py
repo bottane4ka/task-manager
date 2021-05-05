@@ -15,6 +15,7 @@ class BaseSVC(object):
      - выполнение периодической и/или первичной задачи по условию
 
     """
+
     _signals_to_handle = [signal.SIGINT, signal.SIGTERM]
     _host = None
     _port = None
@@ -30,7 +31,15 @@ class BaseSVC(object):
     pool_task = None
     ldt = None
 
-    def __init__(self, thread_count: int, host: str, port: str, db_name: str, user: str, channel_name: str) -> None:
+    def __init__(
+        self,
+        thread_count: int,
+        host: str,
+        port: str,
+        db_name: str,
+        user: str,
+        channel_name: str,
+    ) -> None:
         """
         Конструктор класса
 
@@ -89,11 +98,11 @@ class BaseSVC(object):
             while is_continue:
                 try:
                     for n in await_pg_notifications(
-                            self._e,
-                            [self._channel_name],
-                            timeout=10,
-                            yield_on_timeout=True,
-                            handle_signals=self._signals_to_handle,
+                        self._e,
+                        [self._channel_name],
+                        timeout=10,
+                        yield_on_timeout=True,
+                        handle_signals=self._signals_to_handle,
                     ):
                         if isinstance(n, int):
                             sig = signal.Signals(n)
@@ -124,7 +133,11 @@ class BaseSVC(object):
 
         :return:
         """
-        return get_dbapi_connection(self.connect_string.format(self._host, self._port, self._db_name, self._user))
+        return get_dbapi_connection(
+            self.connect_string.format(
+                self._host, self._port, self._db_name, self._user
+            )
+        )
 
     def add_task(self, channel: str, data: str) -> None:
         """
@@ -179,7 +192,9 @@ class NotifyCount(object):
         self._count += 1
         if not self._ldt:
             self._ldt = datetime.now()
-        elif (datetime.now() - self._ldt).seconds >= self._wait_time or self._count >= self._max_count:
+        elif (
+            datetime.now() - self._ldt
+        ).seconds >= self._wait_time or self._count >= self._max_count:
             self._ldt = None
             self._count = 0
             return True
@@ -199,4 +214,3 @@ class NotifyCount(object):
     @property
     def wait_time(self):
         return self._wait_time
-

@@ -26,6 +26,8 @@ labelgun = { git = "https://gitlab.usetech.ru/pub/labelgun.git", extras = ["logg
 djangorestframework_simplejwt = "^4.4.0"
 uwsgi = "~=2.0"
 pydantic = "=1.7.2"
+djangorestframework-recursive = "0.1.2"
+pgnotify = "^0.1.1561372201"
 
 [tool.poetry.dev-dependencies]
 black = "=19.3b0"
