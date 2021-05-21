@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import uuid
 from collections import namedtuple
@@ -6,13 +5,6 @@ from datetime import datetime
 
 from django.db.models import Q
 
-from manager_svc.settings import COMMAND_LOG_CHANNEL
-from manager_svc.settings import DB_HOST, DB_PORT, DB_NAME, DB_USER
-from manager_svc.settings import MAIN_TASK_LOG_CHANNEL
-from manager_svc.settings import MESSAGE_CHANNEL
-from manager_svc.settings import MODULE_SYSTEM_NAME
-from manager_svc.settings import PERIOD_TIME
-from manager_svc.settings import TASK_LOG_CHANNEL
 from rest.manager.models import ActionModel
 from rest.manager.models import BaseTaskLogModel
 from rest.manager.models import CommandLogModel
@@ -26,6 +18,9 @@ from rest.manager.models import StatusSendChoice
 from rest.manager.models import TaskLogModel
 from rest.manager.models import TaskSequenceModel
 from rest.manager.models import TaskStatusModel
+from settings import DATABASES
+from settings import MANAGER_SYSTEM_NAME
+from settings import PERIOD_TIME
 from utils.base_utils.base_class import BaseSVC
 from utils.exceptions import FindModuleError
 from utils.wrapper import message_wrapper
@@ -62,9 +57,14 @@ class TaskSVC(BaseSVC):
 
     def __init__(self, thread_count):
         BaseSVC.__init__(
-            self, thread_count, DB_HOST, DB_PORT, DB_NAME, DB_USER, MODULE_SYSTEM_NAME
+            self, thread_count,
+            DATABASES["default"]["HOST"],
+            DATABASES["default"]["PORT"],
+            DATABASES["default"]["NAME"],
+            DATABASES["default"]["USER"],
+            MANAGER_SYSTEM_NAME
         )
-        self.module = MODULE_SYSTEM_NAME
+        self.module = MANAGER_SYSTEM_NAME
         self.cursor = self.e.cursor()
 
     @property
@@ -90,21 +90,22 @@ class TaskSVC(BaseSVC):
         """
         Запуск подписки на список каналов
 
-        Основыне задачи метода:
+        Основные задачи метода:
          - инициализация списка каналов: канал для сущности "Сообщения" и канал для сущности "Аудит выполнения задач"
          - инициализация структуры для хранения времени первого сообщения и количество сообщений
            (данная структура необходима для реализации ожидания нескольких сообщений из канала,
             обеспечивает выполнение поиска изменений не для каждого изменения в БД а для группы изменений)
-         - запуск подкписки
+         - запуск подписки
 
         :return:
         """
         self.table_list = [
-            MESSAGE_CHANNEL,
-            TASK_LOG_CHANNEL,
-            MAIN_TASK_LOG_CHANNEL,
-            COMMAND_LOG_CHANNEL,
+            # MESSAGE_CHANNEL,
+            # TASK_LOG_CHANNEL,
+            # MAIN_TASK_LOG_CHANNEL,
+            # COMMAND_LOG_CHANNEL,
         ]
+        # TODO Брать данные о настройках из БД
         self.notify_list = dict()
         for key, item in self._key_func.items():
             self.notify_list[key] = NotifyCount(item.max_count, item.wait_time)
@@ -133,13 +134,13 @@ class TaskSVC(BaseSVC):
         :return:
         """
         main_task_log_list = BaseTaskLogModel.objects.filter(
-            status_id__system_name="progress", task_log_list__isnull=True
+            status__system_name="progress", task_log_list__isnull=True
         )
         if main_task_log_list:
             self.pool_task.add_task(self.create_task_log, main_task_log_list)
 
         main_task_log_list = BaseTaskLogModel.objects.filter(
-            status_id__system_name="cancel", task_log_list__isnull=False
+            status__system_name="cancel", task_log_list__isnull=False
         )
         if main_task_log_list:
             self.pool_task.add_task(self.cancel_task_log, main_task_log_list)
@@ -150,21 +151,20 @@ class TaskSVC(BaseSVC):
         :return:
         """
         task_log_list = TaskLogModel.objects.filter(
-            status_id__system_name="progress",
-            action_id__method_id__module_id__status=True,
+            status__system_name="progress", action__method__module__status=True
         ).distinct()
         if task_log_list:
             self.pool_task.add_task(self.create_message, task_log_list)
 
         task_log_list = TaskLogModel.objects.filter(
-            status_id__system_name="cancel",
-            command_log_list__status_id__system_name__in=["set", "progress"],
+            status__system_name="cancel",
+            command_log_list__status__system_name__in=["set", "progress"],
         ).distinct()
         if task_log_list:
             self.pool_task.add_task(self.cancel_command_log, task_log_list)
 
         main_task_log = BaseTaskLogModel.objects.filter(
-            status_id__system_name="progress"
+            status__system_name="progress"
         ).distinct()
         if main_task_log:
             self.pool_task.add_task(self.update_main_task_log, main_task_log)
@@ -175,7 +175,7 @@ class TaskSVC(BaseSVC):
         :return: 
         """
         command_log_list = CommandLogModel.objects.filter(
-            status_id__system_name="progress"
+            status__system_name="progress"
         ).distinct()
         if command_log_list:
             self.pool_task.add_task(
@@ -183,8 +183,8 @@ class TaskSVC(BaseSVC):
             )
 
         command_log_list = CommandLogModel.objects.filter(
-            status_id__system_name="cancel",
-            command_log_list__status_id__system_name__in=["set", "progress"],
+            status__system_name="cancel",
+            command_log_list__status__system_name__in=["set", "progress"],
         ).distinct()
         if command_log_list:
             self.pool_task.add_task(
@@ -193,10 +193,10 @@ class TaskSVC(BaseSVC):
 
         command_log_list = (
             CommandLogModel.objects.filter(
-                status_id__system_name="progress",
-                command_log_list__status_id__system_name="set",
+                status__system_name="progress",
+                command_log_list__status__system_name="set",
             )
-            .exclude(command_log_list__status_id__system_name="error")
+            .exclude(command_log_list__status__system_name="error")
             .distinct()
         )
         if command_log_list:
@@ -206,10 +206,10 @@ class TaskSVC(BaseSVC):
 
         task_log_list = (
             TaskLogModel.objects.filter(
-                status_id__system_name="progress",
-                command_log_list__status_id__system_name="set",
+                status__system_name="progress",
+                command_log_list__status__system_name="set",
             )
-            .exclude(command_log_list__status_id__system_name="error")
+            .exclude(command_log_list__status__system_name="error")
             .distinct()
         )
         if task_log_list:
@@ -218,13 +218,13 @@ class TaskSVC(BaseSVC):
             )
 
         command_log_list = CommandLogModel.objects.filter(
-            status_id__system_name="progress", command_id__command_list__isnull=False
+            status__system_name="progress", command__command_list__isnull=False
         ).distinct()
         if command_log_list:
             self.pool_task.add_task(self.update_log, command_log_list, is_command=True)
 
         task_log_list = TaskLogModel.objects.filter(
-            status_id__system_name="progress", action_id__command_list__isnull=False
+            status__system_name="progress", action__command_list__isnull=False
         ).distinct()
         if task_log_list:
             self.pool_task.add_task(self.update_log, task_log_list)
@@ -238,7 +238,7 @@ class TaskSVC(BaseSVC):
             Q(msg_type=MsgTypeChoice.task.value, status__isnull=True)
             | Q(
                 msg_type=MsgTypeChoice.connect.value,
-                send_id=self.module,
+                sender=self.module,
                 status__isnull=True,
             )
         )
@@ -248,33 +248,33 @@ class TaskSVC(BaseSVC):
         message_list = MessageModel.objects.filter(
             msg_type=MsgTypeChoice.task.value,
             status=StatusSendChoice.sent.value,
-            get_id=self.module,
+            recipient=self.module,
         )
         if message_list:
             self.pool_task.add_task(self.create_command_log, message_list)
 
         message_list = MessageModel.objects.filter(
             msg_type__in=[MsgTypeChoice.success.value, MsgTypeChoice.error.value],
-            get_id=self.module,
+            recipient=self.module,
             status=StatusSendChoice.sent.value,
-            command_log_id__status_id__system_name="progress",
+            command_log__status__system_name="progress",
         )
         if message_list:
             self.pool_task.add_task(self.update_command_log, message_list)
 
         message_list = MessageModel.objects.filter(
             msg_type__in=[MsgTypeChoice.success.value, MsgTypeChoice.error.value],
-            get_id=self.module,
+            recipient=self.module,
             status=StatusSendChoice.sent.value,
-            task_log_id__status_id__system_name="progress",
-            command_log_id__isnull=True,
+            task_log__status__system_name="progress",
+            command_log__isnull=True,
         )
         if message_list:
             self.pool_task.add_task(self.update_task_log, message_list)
 
         message_list = MessageModel.objects.filter(
             msg_type__in=[MsgTypeChoice.info.value, MsgTypeChoice.warning.value],
-            get_id=self.module,
+            recipient=self.module,
             status=StatusSendChoice.sent.value,
         )
         if message_list:
@@ -282,7 +282,7 @@ class TaskSVC(BaseSVC):
 
         message_list = MessageModel.objects.filter(
             msg_type=MsgTypeChoice.connect.value,
-            get_id=self.module,
+            recipient=self.module,
             status=StatusSendChoice.sent.value,
         )
         if message_list:
@@ -299,29 +299,29 @@ class TaskSVC(BaseSVC):
         for main_task_log in main_task_log_list:
             task_log_list = list()
             task_sequence_list = TaskSequenceModel.objects.filter(
-                template_task_id=main_task_log.template_task_id
+                template_task=main_task_log.template_task
             ).order_by("number")
             if task_sequence_list:
                 for task_sequence in task_sequence_list:
                     action_list = ActionModel.objects.filter(
-                        task_id=task_sequence.task_id
+                        task=task_sequence.task
                     ).order_by("number")
                     if action_list:
                         for action in action_list:
                             data = TaskLogModel(
-                                main_task_log_id=main_task_log,
-                                action_id=action,
-                                status_id=status_set,
+                                main_task_log=main_task_log,
+                                action=action,
+                                status=status_set,
                             )
                             task_log_list.append(data)
             if task_log_list:
-                task_log_list[0].status_id = status_progress
+                task_log_list[0].status = status_progress
                 TaskLogModel.objects.bulk_create(task_log_list)
             current_task = TaskLogModel.objects.filter(
-                main_task_log_id=main_task_log, status_id=status_progress
+                main_task_log=main_task_log, status=status_progress
             ).last()
             if current_task:
-                main_task_log.current_task_id = current_task
+                main_task_log.current_task = current_task
                 main_task_log.save()
 
     def cancel_task_log(self, main_task_log_list):
@@ -332,9 +332,9 @@ class TaskSVC(BaseSVC):
         """
         status = TaskStatusModel.objects.get(system_name="cancel")
         task_log_list = TaskLogModel.objects.filter(
-            main_task_log_id__in=main_task_log_list, status_id__system_name="set"
+            main_task_log__in=main_task_log_list, status__system_name="set"
         )
-        task_log_list.update(status_id=status)
+        task_log_list.update(status=status)
 
     def create_message(self, log_list, is_command=False, is_restart=False):
         """
@@ -349,30 +349,30 @@ class TaskSVC(BaseSVC):
             is_new = False
             if is_command:
                 s_message = MessageModel.objects.filter(
-                    task_log_id=log_item.task_log_id,
-                    command_log_id=log_item,
+                    task_log=log_item.task_log,
+                    command_log=log_item,
                     msg_type=MsgTypeChoice.success.value,
                 ).order_by("-date_created")
                 e_message = MessageModel.objects.filter(
-                    task_log_id=log_item.task_log_id,
-                    command_log_id=log_item,
+                    task_log=log_item.task_log,
+                    command_log=log_item,
                     msg_type=MsgTypeChoice.error.value,
                 ).order_by("-date_created")
                 command_log_list = CommandLogModel.objects.filter(
-                    task_log_id=log_item.task_log_id, parent_id=log_item
+                    task_log=log_item.task_log, parent=log_item
                 )
             else:
                 s_message = MessageModel.objects.filter(
-                    task_log_id=log_item,
-                    command_log_id__isnull=True,
+                    task_log=log_item,
+                    command_log__isnull=True,
                     msg_type=MsgTypeChoice.success.value,
                 ).order_by("-date_created")
                 e_message = MessageModel.objects.filter(
-                    task_log_id=log_item,
-                    command_log_id__isnull=True,
+                    task_log=log_item,
+                    command_log__isnull=True,
                     msg_type=MsgTypeChoice.error.value,
                 ).order_by("-date_created")
-                command_log_list = CommandLogModel.objects.filter(task_log_id=log_item)
+                command_log_list = CommandLogModel.objects.filter(task_log=log_item)
 
             s_message = s_message.first() if s_message else None
             e_message = e_message.first() if e_message else None
@@ -389,33 +389,33 @@ class TaskSVC(BaseSVC):
 
                 if is_new:
                     method = (
-                        log_item.action_id.method_id
+                        log_item.action.method
                         if not is_command
-                        else log_item.command_id.method_id
+                        else log_item.command.method
                     )
-                    if method.module_id.status:
-                        s_id = uuid.uuid4()
+                    if method.module.status:
+                        _id = uuid.uuid4()
                         post_data = {
-                            "s_id": s_id,
-                            "send_id": self.module,
-                            "get_id": method.module_id,
+                            "id": _id,
+                            "sender": self.module,
+                            "recipient": method.module,
                             "date_created": datetime.now(),
                             "status": None,
                             "msg_type": MsgTypeChoice.task.value,
-                            "parent_msg_id": None,
-                            "task_log_id": log_item
+                            "parent_msg": None,
+                            "task_log": log_item
                             if not is_command
-                            else log_item.task_log_id,
-                            "command_log_id": log_item if is_command else None,
+                            else log_item.task_log,
+                            "command_log": log_item if is_command else None,
                             "data": {
-                                "task_id": str(s_id),
+                                "task": str(_id),
                                 "msg_type": MsgTypeChoice.task.value,
                                 "method": method.system_name,
                             },
                         }
                         MessageModel.objects.create(**post_data)
-                if log_item.status_id != status:
-                    log_item.status_id = status
+                if log_item.status != status:
+                    log_item.status = status
                     log_item.save()
 
     def update_main_task_log(self, main_task_log_list):
@@ -428,18 +428,18 @@ class TaskSVC(BaseSVC):
         e_status = TaskStatusModel.objects.get(system_name="error")
         for main_task_log in main_task_log_list:
             e_command_log_list = TaskLogModel.objects.filter(
-                main_task_log_id=main_task_log, status_id=e_status
+                main_task_log=main_task_log, status=e_status
             )
             not_command_log_list = TaskLogModel.objects.filter(
-                Q(main_task_log_id=main_task_log) & ~Q(status_id=f_status)
+                Q(main_task_log=main_task_log) & ~Q(status=f_status)
             )
             if e_command_log_list:
-                main_task_log.status_id = e_status
+                main_task_log.status = e_status
                 main_task_log.save()
             elif not not_command_log_list:
-                main_task_log.status_id = f_status
+                main_task_log.status = f_status
                 main_task_log.end_task_date = datetime.now()
-                main_task_log.current_task_id = None
+                main_task_log.current_task = None
                 main_task_log.save()
 
     def cancel_command_log(self, log_list, is_command=False):
@@ -452,12 +452,12 @@ class TaskSVC(BaseSVC):
         status = TaskStatusModel.objects.get(system_name="cancel")
         for log_item in log_list:
             command_log_list = log_item.command_log_list.filter(
-                status_id__system_name="set"
+                status__system_name="set"
             )
-            command_log_list.update(status_id=status)
+            command_log_list.update(status=status)
             command_log_list = log_item.command_log_list.filter(
-                status_id__system_name="progress",
-                command_log_list__status_id__system_name="set",
+                status__system_name="progress",
+                command_log_list__status__system_name="set",
             )
             if command_log_list:
                 self.cancel_command_log(command_log_list, is_command=True)
@@ -472,29 +472,29 @@ class TaskSVC(BaseSVC):
         status = TaskStatusModel.objects.get(system_name="progress")
         for log_item in log_list:
             command_log = (
-                log_item.command_log_list.filter(status_id__system_name="finish")
-                .order_by("command_id__number")
+                log_item.command_log_list.filter(status__system_name="finish")
+                .order_by("command__number")
                 .last()
             )
             if command_log:
                 if is_command:
                     next_command_log_list = CommandLogModel.objects.filter(
-                        task_log_id=log_item.task_log_id,
-                        parent_id=log_item,
-                        status_id__system_name="set",
-                        command_id__is_parallel=False,
-                        command_id__number=command_log.command_id.number + 1,
+                        task_log=log_item.task_log,
+                        parent=log_item,
+                        status__system_name="set",
+                        command__is_parallel=False,
+                        command__number=command_log.command.number + 1,
                     )
                 else:
                     next_command_log_list = CommandLogModel.objects.filter(
-                        task_log_id=log_item,
-                        command_id__is_parallel=False,
-                        status_id__system_name="set",
-                        command_id__number=command_log.command_id.number + 1,
+                        task_log=log_item,
+                        command__is_parallel=False,
+                        status__system_name="set",
+                        command__number=command_log.command.number + 1,
                     )
                 if next_command_log_list:
                     for next_command_log in next_command_log_list:
-                        next_command_log.status_id = status
+                        next_command_log.status = status
                         next_command_log.save()
 
     def update_log(self, log_list, is_command=False):
@@ -509,17 +509,17 @@ class TaskSVC(BaseSVC):
         e_status = TaskStatusModel.objects.get(system_name="error")
         for log in log_list:
             if is_command:
-                command_log_list = CommandLogModel.objects.filter(parent_id=log)
+                command_log_list = CommandLogModel.objects.filter(parent=log)
             else:
-                command_log_list = CommandLogModel.objects.filter(task_log_id=log)
+                command_log_list = CommandLogModel.objects.filter(task_log=log)
             if command_log_list:
-                e_command_log_list = command_log_list.filter(status_id=e_status)
-                not_command_log_list = command_log_list.filter(~Q(status_id=f_status))
+                e_command_log_list = command_log_list.filter(status=e_status)
+                not_command_log_list = command_log_list.filter(~Q(status=f_status))
                 if e_command_log_list:
-                    log.status_id = e_status
+                    log.status = e_status
                     log.save()
                 elif not not_command_log_list:
-                    log.status_id = f_status
+                    log.status = f_status
                     log.save()
 
     @message_wrapper

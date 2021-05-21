@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 import json
 from datetime import datetime
 
+from rest.manager.models import ModuleModel
+from rest.manager.models import MsgTypeChoice
+from utils.base_utils.base_class import BaseSVC
 from utils.exceptions import FindModuleError, TaskError
 from utils.wrapper import message_wrapper, task_wrapper
-from utils.base_utils.base_class import BaseSVC
-from rest.manager.models import MsgTypeChoice
-
-from rest.manager.models import ModuleModel
 
 
 class BaseFunctionalSVC(BaseSVC):
@@ -125,17 +123,17 @@ class BaseFunctionalSVC(BaseSVC):
         :return:
         """
         data = json.loads(data)
-        task_id = data.pop("task_id")
+        task = data.pop("task")
 
         msg_type = data.get("msg_type")
         if msg_type == MsgTypeChoice.connect.value:
             self._connect(
-                [task_id] if task_id else None,
-                task_id=task_id,
+                [task] if task else None,
+                task=task,
                 data=data,
                 msg_type=msg_type,
-                send_id=self.module,
-                get_id=self.manager,
+                recipient=self.module,
+                sender=self.manager,
             )
         else:
             try:
@@ -151,14 +149,14 @@ class BaseFunctionalSVC(BaseSVC):
                     )
                     raise TaskError(message)
 
-                self.pool_task.add_task(func, task_id=task_id, **data)
+                self.pool_task.add_task(func, task=task, **data)
             except TaskError as ex:
                 self.pool_task.add_task(
                     self._error_method,
-                    task_id=task_id,
+                    task=task,
                     data={"message": str(ex)},
-                    send_id=self.module,
-                    get_id=self.manager,
+                    recipient=self.module,
+                    sender=self.manager,
                 )
 
     def period_task(self) -> None:
@@ -172,7 +170,7 @@ class BaseFunctionalSVC(BaseSVC):
         :return: -
         """
         self.ldt = datetime.now()
-        data = {"msg_type": MsgTypeChoice.connect.value, "task_id": None}
+        data = {"msg_type": MsgTypeChoice.connect.value, "task": None}
         self.add_task("", json.dumps(data))
 
     @message_wrapper
@@ -185,10 +183,10 @@ class BaseFunctionalSVC(BaseSVC):
 
         :param args:
         :param kwargs:
-                     - task_id - идентификатор сообщения из сущности "Сообщения"
+                     - task - идентификатор сообщения из сущности "Сообщения"
                      - msg_type - тип сообщения
-                     - send_id - отправитель (данная служба)
-                     - get_id - получатель (менеджер задач)
+                     - sender - отправитель (данная служба)
+                     - recipient - получатель (менеджер задач)
         :return: кортеж:
                      - result = None - результат выполнения метода
                      - is_error = False - признак ошибки
@@ -205,10 +203,10 @@ class BaseFunctionalSVC(BaseSVC):
 
         :param args:
         :param kwargs:
-                     - task_id - идентификатор сообщения из сущности "Сообщения"
+                     - task - идентификатор сообщения из сущности "Сообщения"
                      - msg_type - тип сообщения
-                     - send_id - отправитель (данная служба)
-                     - get_id - получатель (менеджер задач)
+                     - sender - отправитель (данная служба)
+                     - recipient - получатель (менеджер задач)
         :return: кортеж:
                      - result = None - результат выполнения метода
                      - is_error = True - признак ошибки

@@ -45,6 +45,9 @@ class CustomRouter(SimpleRouter):
                 continue
             view = getattr(views, view_name)
             if type(view) == type:
-                table_name = view.queryset.model._meta.db_table
-                schema_name = view.queryset.model._meta.db_tablespace
-                self.register(f"{schema_name}/{table_name}", view, basename=f"{schema_name}_{table_name}")
+                schema_name, table_name = view.queryset.model._meta.db_table.split("\".\"")
+                self.register(
+                    f"{schema_name}/{table_name}",
+                    view,
+                    basename=f"{schema_name}_{table_name}",
+                )

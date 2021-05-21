@@ -1,7 +1,8 @@
-# -*- coding: utf-8 -*-
 import signal
 from datetime import datetime
+
 from pgnotify import await_pg_notifications, get_dbapi_connection
+
 from thread_pool import ThreadPool
 
 

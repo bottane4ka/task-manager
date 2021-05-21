@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-
-from threading import Thread, Event
 from queue import Queue, Empty
+from threading import Thread, Event
 
 
 class Worker(Thread):

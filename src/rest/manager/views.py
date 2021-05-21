@@ -1,32 +1,30 @@
-from rest_framework import viewsets
-from rest_framework import mixins
-
-from manager.models import ActionModel
-from manager.models import BaseTaskLogModel
-from manager.models import BaseTaskModel
-from manager.models import CommandLogModel
-from manager.models import CommandModel
-from manager.models import MessageModel
-from manager.models import MethodModuleModel
-from manager.models import ModuleModel
-from manager.models import TaskLogModel
-from manager.models import TaskModel
-from manager.models import TaskSequenceModel
-from manager.models import TaskStatusModel
-
-from manager.serializer import ActionSerializer
-from manager.serializer import BaseTaskLogSerializer
-from manager.serializer import BaseTaskSerializer
-from manager.serializer import CommandLogSerializer
-from manager.serializer import CommandSerializer
-from manager.serializer import MessageSerializer
-from manager.serializer import MethodModuleSerializer
-from manager.serializer import ModuleSerializer
-from manager.serializer import TaskLogSerializer
-from manager.serializer import TaskSequenceSerializer
-from manager.serializer import TaskSerializer
-from manager.serializer import TaskStatusSerializer
 from rest.brave_rest_framework import viewsets
+from rest.manager.models import ActionModel
+from rest.manager.models import BaseTaskLogModel
+from rest.manager.models import BaseTaskModel
+from rest.manager.models import CommandLogModel
+from rest.manager.models import CommandModel
+from rest.manager.models import MessageModel
+from rest.manager.models import MethodModuleModel
+from rest.manager.models import ModuleModel
+from rest.manager.models import NotifyCountModel
+from rest.manager.models import TaskLogModel
+from rest.manager.models import TaskModel
+from rest.manager.models import TaskSequenceModel
+from rest.manager.models import TaskStatusModel
+from rest.manager.serializer import ActionSerializer
+from rest.manager.serializer import BaseTaskLogSerializer
+from rest.manager.serializer import BaseTaskSerializer
+from rest.manager.serializer import CommandLogSerializer
+from rest.manager.serializer import CommandSerializer
+from rest.manager.serializer import MessageSerializer
+from rest.manager.serializer import MethodModuleSerializer
+from rest.manager.serializer import ModuleSerializer
+from rest.manager.serializer import NotifyCountSerializer
+from rest.manager.serializer import TaskLogSerializer
+from rest.manager.serializer import TaskSequenceSerializer
+from rest.manager.serializer import TaskSerializer
+from rest.manager.serializer import TaskStatusSerializer
 
 
 class ActionViewSet(viewsets.CustomModelViewSet):
@@ -87,3 +85,8 @@ class TaskViewSet(viewsets.CustomModelViewSet):
 class TaskSequenceViewSet(viewsets.CustomModelViewSet):
     queryset = TaskSequenceModel.objects.all()
     serializer_class = TaskSequenceSerializer
+
+
+class NotifyCountViewSet(viewsets.CustomModelViewSet):
+    queryset = NotifyCountModel.objects.all()
+    serializer_class = NotifyCountSerializer

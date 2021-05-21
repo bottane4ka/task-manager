@@ -1,18 +1,19 @@
 from rest_framework_recursive.fields import RecursiveField
 
-from manager.models import ActionModel
-from manager.models import BaseTaskLogModel
-from manager.models import BaseTaskModel
-from manager.models import CommandLogModel
-from manager.models import CommandModel
-from manager.models import MessageModel
-from manager.models import MethodModuleModel
-from manager.models import ModuleModel
-from manager.models import TaskLogModel
-from manager.models import TaskModel
-from manager.models import TaskSequenceModel
-from manager.models import TaskStatusModel
 from rest.brave_rest_framework.serializers import CustomSerializer
+from rest.manager.models import ActionModel
+from rest.manager.models import BaseTaskLogModel
+from rest.manager.models import BaseTaskModel
+from rest.manager.models import CommandLogModel
+from rest.manager.models import CommandModel
+from rest.manager.models import MessageModel
+from rest.manager.models import MethodModuleModel
+from rest.manager.models import ModuleModel
+from rest.manager.models import NotifyCountModel
+from rest.manager.models import TaskLogModel
+from rest.manager.models import TaskModel
+from rest.manager.models import TaskSequenceModel
+from rest.manager.models import TaskStatusModel
 
 
 class TaskStatusSerializer(CustomSerializer):
@@ -114,4 +115,11 @@ class MessageSerializer(CustomSerializer):
 
     class Meta:
         model = MessageModel
+        fields = "__all__"
+
+
+class NotifyCountSerializer(CustomSerializer):
+
+    class Meta:
+        model = NotifyCountModel
         fields = "__all__"

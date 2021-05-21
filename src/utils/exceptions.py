@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class FindModuleError(Exception):
     """
     Ошибка поиска службы в базе данных

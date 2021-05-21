@@ -1,6 +1,6 @@
 from django.conf.urls import url, include
 
-from manager import views
+from rest.manager import views
 from rest.brave_rest_framework.routers import CustomRouter
 
 router = CustomRouter()

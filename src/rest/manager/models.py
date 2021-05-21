@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
+from datetime import datetime
 from enum import Enum
 from uuid import uuid4
-from datetime import datetime
 
-from django.db import models
 from django.contrib.postgres.fields import JSONField
+from django.db import models
 
 
 class StatusSendChoice(Enum):
@@ -52,8 +51,7 @@ class ActionModel(models.Model):
     )
 
     class Meta:
-        db_table = "action"
-        db_tablespace = "manager"
+        db_table = "manager\".\"action"
         verbose_name = "Действие"
         verbose_name_plural = "Действия"
 
@@ -71,8 +69,7 @@ class BaseTaskModel(models.Model):
     name = models.TextField(db_column="name", verbose_name="Наименование")
 
     class Meta:
-        db_table = "base_task"
-        db_tablespace = "manager"
+        db_table = "manager\".\"base_task"
         verbose_name = "Базовая задача"
         verbose_name_plural = "Базовые задачи"
 
@@ -122,8 +119,7 @@ class CommandModel(models.Model):
     )
 
     class Meta:
-        db_table = "command"
-        db_tablespace = "manager"
+        db_table = "manager\".\"command"
         verbose_name = "Команда"
         verbose_name_plural = "Команды"
 
@@ -172,8 +168,7 @@ class CommandLogModel(models.Model):
     )
 
     class Meta:
-        db_table = "command_log"
-        db_tablespace = "manager"
+        db_table = "manager\".\"command_log"
         verbose_name = "Аудит выполнения команды"
         verbose_name_plural = "Аудит выполнения команд"
 
@@ -224,8 +219,7 @@ class BaseTaskLogModel(models.Model):
     )
 
     class Meta:
-        db_table = "base_task_log"
-        db_tablespace = "manager"
+        db_table = "manager\".\"base_task_log"
         verbose_name = "Аудит выполнения базовой задачи"
         verbose_name_plural = "Аудит выполнения базовых задач"
 
@@ -308,8 +302,7 @@ class MessageModel(models.Model):
     )
 
     class Meta:
-        db_table = "message"
-        db_tablespace = "manager"
+        db_table = "manager\".\"message"
         verbose_name = "Сообщение"
         verbose_name_plural = "Сообщения"
 
@@ -339,8 +332,7 @@ class MethodModuleModel(models.Model):
     )
 
     class Meta:
-        db_table = "method_module"
-        db_tablespace = "manager"
+        db_table = "manager\".\"method_module"
         verbose_name = "Метод службы"
         verbose_name_plural = "Методы служб"
 
@@ -372,8 +364,7 @@ class ModuleModel(models.Model):
     )
 
     class Meta:
-        db_table = "module"
-        db_tablespace = "manager"
+        db_table = "manager\".\"module"
         verbose_name = "Служба"
         verbose_name_plural = "Службы"
 
@@ -400,8 +391,7 @@ class ObjectToCommandLogModel(models.Model):
     )
 
     class Meta:
-        db_table = "object_to_command_log"
-        db_tablespace = "manager"
+        db_table = "manager\".\"object_to_command_log"
         verbose_name = "Аудит выполнения команды - Объект"
         verbose_name_plural = "Аудит выполнения команд - Объекты"
 
@@ -428,8 +418,7 @@ class ObjectToTaskLogModel(models.Model):
     )
 
     class Meta:
-        db_table = "object_to_task_log"
-        db_tablespace = "manager"
+        db_table = "manager\".\"object_to_task_log"
         verbose_name = "Аудит выполнения задачи - Объект"
         verbose_name_plural = "Аудит выполнения задач - Объекты"
 
@@ -447,8 +436,7 @@ class TaskModel(models.Model):
     name = models.TextField(db_column="name", verbose_name="Наименование")
 
     class Meta:
-        db_table = "task"
-        db_tablespace = "manager"
+        db_table = "manager\".\"task"
         verbose_name = "Задача"
         verbose_name_plural = "Задачи"
 
@@ -488,8 +476,7 @@ class TaskLogModel(models.Model):
     )
 
     class Meta:
-        db_table = "task_log"
-        db_tablespace = "manager"
+        db_table = "manager\".\"task_log"
         verbose_name = "Аудит выполнения задачи"
         verbose_name_plural = "Аудит выполнения задач"
 
@@ -523,8 +510,7 @@ class TaskSequenceModel(models.Model):
     )
 
     class Meta:
-        db_table = "task_sequence"
-        db_tablespace = "manager"
+        db_table = "manager\".\"task_sequence"
         verbose_name = "Последовательность задач"
         verbose_name_plural = "Последовательности задач"
 
@@ -545,7 +531,45 @@ class TaskStatusModel(models.Model):
     )
 
     class Meta:
-        db_table = "task_status"
-        db_tablespace = "manager"
+        db_table = "manager\".\"task_status"
         verbose_name = "Статус выполнения задачи"
         verbose_name_plural = "Статусы выполнения задачи"
+
+
+class NotifyCountModel(models.Model):
+    id = models.UUIDField(
+        db_column="s_id",
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+        unique=True,
+        blank=True,
+        verbose_name="Идентификатор",
+    )
+    table_schema = models.TextField(
+        db_column="table_schema", verbose_name="Наименование схемы"
+    )
+    table_name = models.TextField(
+        db_column="table_name", verbose_name="Наименование таблицы"
+    )
+    count = models.IntegerField(
+        db_column="count", default=0, verbose_name="Количество пришедших notify от сущности"
+    )
+    last_update_datetime = models.DateTimeField(
+        db_column="last_update_datetime",
+        null=True,
+        verbose_name="Дата и время последнего обновления",
+    )
+    max_count = models.IntegerField(
+        db_column="max_count", verbose_name="Максимальное количество пакета изменений"
+    )
+    wait_time = models.IntegerField(
+        db_column="wait_time",
+        verbose_name="Максимальное время ожидания пакета изменений в секундах",
+    )
+
+    class Meta:
+        db_table = "manager\".\"notify_count"
+        verbose_name = "Частоты отправки notify для сущности"
+        verbose_name_plural = "Частоты отправки notify для сущностей"
+        unique_together = ['table_schema', 'table_name']
